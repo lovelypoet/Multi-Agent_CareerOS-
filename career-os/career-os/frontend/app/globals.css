@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Design tokens — NGUỒN DUY NHẤT của tông màu. Không hardcode hex trong component.
+   Tông: hồng trầm (dusty rose) làm accent, nền trung tính sáng.
+--------------------------------------------------------------------------- */
+:root {
+  --color-bg: #fdfafb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fbf1f4;
+  --color-text: #2b2427;
+  --color-text-muted: #7a6c71;
+  --color-border: #efe1e6;
+  --color-accent: #c9738f;
+  --color-accent-hover: #b45e7b;
+  --color-accent-subtle: #f5dde5;
+
+  /* Màu trạng thái kết quả — tách riêng khỏi accent thương hiệu. */
+  --verdict-strong: #3f9b6b;
+  --verdict-strong-bg: #e4f4ec;
+  --verdict-good: #c9738f;
+  --verdict-good-bg: #f5dde5;
+  --verdict-partial: #c98a3f;
+  --verdict-partial-bg: #f5e9db;
+  --verdict-weak: #b85c5c;
+  --verdict-weak-bg: #f5e0de;
+
+  /* Màu trạng thái approve/reject — tách riêng khỏi verdict (verdict = độ phù hợp của
+     job, status = quyết định của user). Không dùng lại verdict-strong/weak để tránh
+     lẫn 2 khái niệm khác nhau. */
+  --status-approved: #3d6fb4;
+  --status-approved-bg: #e1eaf6;
+  --status-rejected: #6b6470;
+  --status-rejected-bg: #ece9ec;
+
+  /* "Cần xem lại thủ công" (ensemble bất đồng verdict) — tông vàng, tách biệt khỏi cam của
+     verdict-partial, đỏ của verdict-weak, và xám của badge "Chưa phân tích được". */
+  --needs-review: #8a6d0a;
+  --needs-review-bg: #f6efd0;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus nhìn thấy được bằng bàn phím, không tắt outline. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Animation — tiết chế. Khoảnh khắc được đầu tư kỹ là lúc điểm số hiện ra.
+--------------------------------------------------------------------------- */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-rise-in {
+  animation: rise-in 250ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+.animate-dot-pulse {
+  animation: dot-pulse 1.05s ease-in-out infinite;
+}
+
+/* Tôn trọng cài đặt giảm chuyển động của hệ điều hành. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-rise-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Textarea: bỏ resize ngang cho gọn layout. */
+textarea {
+  resize: vertical;
+}

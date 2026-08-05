@@ -1,0 +1,25 @@
+# Phase 0 chỉ cần Postgres chạy bằng container.
+# Backend và frontend chạy trực tiếp trên máy để sửa code là thấy ngay, không cần rebuild image.
+# KHÔNG có service riêng cho AI agent — agent là package Python nằm trong backend process.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: careeros-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-careeros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-careeros}
+      POSTGRES_DB: ${POSTGRES_DB:-careeros}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - careeros_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-careeros} -d ${POSTGRES_DB:-careeros}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  careeros_pgdata:

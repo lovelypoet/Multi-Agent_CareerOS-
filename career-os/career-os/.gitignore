@@ -1,0 +1,23 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Secrets ---
+.env
+.env.local
+!.env.example
+!.env.local.example
+
+# --- Node / Next ---
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# --- Khi tách repo public, bỏ comment 3 dòng dưới để loại phần private ---
+# backend/app/agents/
+# backend/app/prompts/
+# backend/app/workflows/
