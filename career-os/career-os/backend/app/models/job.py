@@ -2,12 +2,16 @@
 
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import CheckConstraint, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, created_at_column
 
 SOURCES = ("manual", "itviec")
+
+# Dimension thật của `nomic-embed-text-v2-moe`, đã tự verify — xem `integrations/embedding_client.py`.
+EMBEDDING_DIM = 768
 
 
 class Job(Base):
@@ -27,6 +31,10 @@ class Job(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     # 'manual' = dán tay (Phase 0), 'itviec' = tự fetch (Phase 1).
     source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="manual")
+    # Phase 3 việc #4 — tính từ title + skill tags (dữ liệu RẺ, cùng tầng với bộ lọc từ khóa),
+    # KHÔNG phải từ full description. NULL cho job cũ trước tính năng này, không backfill bắt
+    # buộc. Dùng để tìm kiếm theo ý nghĩa (`GET /api/jobs/search`, `.cosine_distance()`).
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     created_at: Mapped[datetime] = created_at_column()
 
     match_results = relationship(

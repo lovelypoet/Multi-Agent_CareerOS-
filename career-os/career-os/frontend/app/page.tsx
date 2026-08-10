@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Dashboard from "@/components/Dashboard";
+import EmailNotifications from "@/components/EmailNotifications";
 import ErrorNotice from "@/components/ErrorNotice";
 import HistoryList from "@/components/HistoryList";
+import JobSearch from "@/components/JobSearch";
 import MatchCard from "@/components/MatchCard";
 import PendingDots from "@/components/PendingDots";
 import { analyzeJob, ApiError, listJobs, type JobWithMatch, type MatchResult } from "@/lib/api";
@@ -65,6 +67,10 @@ export default function AnalyzePage() {
       <section>
         <Dashboard />
       </section>
+
+      <EmailNotifications />
+
+      <JobSearch />
 
       <section>
         <h1 className="font-display text-section-lg font-bold tracking-tight">

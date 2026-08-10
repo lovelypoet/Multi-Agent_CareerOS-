@@ -4,7 +4,9 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 — Postgres 16 chính thức đã cài sẵn extension `vector`.
+    # KHÔNG dùng postgres:16-alpine rồi tự cài extension thủ công (dễ lỗi, xem README Phase 3 #4).
+    image: pgvector/pgvector:pg16
     container_name: careeros-postgres
     restart: unless-stopped
     environment:

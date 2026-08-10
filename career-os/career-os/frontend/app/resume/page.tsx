@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import PendingDots from "@/components/PendingDots";
-import { ApiError, ErrorCode, getResume, saveResume, uploadResumePdf } from "@/lib/api";
+import {
+  ApiError,
+  type CVExtractedKeywords,
+  ErrorCode,
+  getExtractedKeywords,
+  getResume,
+  saveResume,
+  uploadResumePdf,
+} from "@/lib/api";
 
 export default function ResumePage() {
   const [content, setContent] = useState("");
@@ -15,6 +23,20 @@ export default function ResumePage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [extractedKeywords, setExtractedKeywords] = useState<CVExtractedKeywords | null>(null);
+
+  // Trích xuất chạy ĐỒNG BỘ ngay trong request lưu resume (xem BE) — gọi lại GET này sau khi
+  // save/upload thành công là đủ để lấy kết quả mới nhất, không cần polling.
+  async function refreshExtractedKeywords() {
+    try {
+      setExtractedKeywords(await getExtractedKeywords());
+    } catch {
+      // Chưa có (404, vd trích xuất lần đầu chưa từng chạy hoặc lỗi) — không hiện khối minh
+      // bạch, không phải lỗi cần báo cho người dùng thấy.
+      setExtractedKeywords(null);
+    }
+  }
+
   useEffect(() => {
     // Chưa có resume (404) là trạng thái bình thường ở lần dùng đầu tiên, không phải lỗi.
     getResume()
@@ -25,6 +47,8 @@ export default function ResumePage() {
         }
       })
       .finally(() => setLoading(false));
+
+    void refreshExtractedKeywords();
   }, []);
 
   const canSave = content.trim().length > 0 && !saving;
@@ -39,6 +63,9 @@ export default function ResumePage() {
     try {
       await saveResume(content.trim());
       setSaved(true);
+      // Trích xuất đã chạy xong đồng bộ trong request lưu ở trên — gọi lại ngay để lấy kết quả
+      // mới nhất (hoặc giữ nguyên khối cũ nếu lần này lỗi, BE không xoá dữ liệu cũ).
+      await refreshExtractedKeywords();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -63,6 +90,7 @@ export default function ResumePage() {
       // tiếp nếu muốn, giống hệt cảm giác dán tay.
       setContent(resume.content);
       setSaved(true);
+      await refreshExtractedKeywords();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -159,6 +187,29 @@ export default function ResumePage() {
               {error}
             </p>
           )}
+
+          {/* Minh bạch: cho người dùng thấy hệ thống tự rút ra gì để bổ sung bộ lọc job (Phase
+              1), tránh cảm giác "hộp đen" — chỉ hiển thị, sửa từ khóa qua relevance_keywords.py
+              như đã có, không cho chỉnh trực tiếp trong UI (xem Phase 3 việc #4 mục 7/10). */}
+          {extractedKeywords &&
+            (extractedKeywords.domains.length > 0 || extractedKeywords.key_skills.length > 0) && (
+              <div className="mt-6 rounded-card border border-line bg-surface-muted p-4">
+                <p className="text-caption font-semibold text-muted">
+                  Hệ thống đã tự nhận diện các từ khóa sau từ CV của bạn, dùng bổ sung cho bộ lọc
+                  tìm job tự động:
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[...extractedKeywords.domains, ...extractedKeywords.key_skills].map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="rounded-full bg-accent-subtle px-2.5 py-1 text-[12px] font-semibold text-accent"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
         </section>
       )}
     </div>

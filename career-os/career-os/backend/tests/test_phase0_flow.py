@@ -95,7 +95,11 @@ async def test_agent_run_logged_with_usage(client, fake_agent, valid_match_json)
     await client.post("/api/jobs/analyze", json={"description": "JD bất kỳ"})
 
     async with SessionLocal() as session:
-        run = (await session.execute(select(AgentRun))).scalar_one()
+        # Lọc theo agent_name='matching_agent' — scam_detection_agent giờ CŨNG ghi agent_runs
+        # độc lập cho cùng job (xem Phase 3 việc #3), không lọc sẽ vỡ scalar_one() (>1 row).
+        run = (
+            await session.execute(select(AgentRun).where(AgentRun.agent_name == "matching_agent"))
+        ).scalar_one()
 
     assert run.agent_name == "matching_agent"
     assert run.prompt_version == "matching_v1"
@@ -132,7 +136,11 @@ async def test_unparseable_output_saves_job_and_error_but_no_match_row(client, f
     assert await _count(MatchResult) == 0
 
     async with SessionLocal() as session:
-        run = (await session.execute(select(AgentRun))).scalar_one()
+        # Lọc theo agent_name='matching_agent' — scam_detection_agent giờ CŨNG ghi agent_runs
+        # độc lập cho cùng job (xem Phase 3 việc #3), không lọc sẽ vỡ scalar_one() (>1 row).
+        run = (
+            await session.execute(select(AgentRun).where(AgentRun.agent_name == "matching_agent"))
+        ).scalar_one()
     assert run.error is not None
     assert run.output is None
 
@@ -147,7 +155,11 @@ async def test_output_with_wrong_schema_is_rejected(client, fake_agent):
     assert await _count(MatchResult) == 0
 
     async with SessionLocal() as session:
-        run = (await session.execute(select(AgentRun))).scalar_one()
+        # Lọc theo agent_name='matching_agent' — scam_detection_agent giờ CŨNG ghi agent_runs
+        # độc lập cho cùng job (xem Phase 3 việc #3), không lọc sẽ vỡ scalar_one() (>1 row).
+        run = (
+            await session.execute(select(AgentRun).where(AgentRun.agent_name == "matching_agent"))
+        ).scalar_one()
     assert "schema" in (run.error or "").lower()
 
 
@@ -161,7 +173,11 @@ async def test_anthropic_api_error_is_logged_and_reported(client, fake_agent):
     assert "rate limit" not in response.json()["detail"]["message"]
 
     async with SessionLocal() as session:
-        run = (await session.execute(select(AgentRun))).scalar_one()
+        # Lọc theo agent_name='matching_agent' — scam_detection_agent giờ CŨNG ghi agent_runs
+        # độc lập cho cùng job (xem Phase 3 việc #3), không lọc sẽ vỡ scalar_one() (>1 row).
+        run = (
+            await session.execute(select(AgentRun).where(AgentRun.agent_name == "matching_agent"))
+        ).scalar_one()
     assert "rate limit" in run.error
 
 

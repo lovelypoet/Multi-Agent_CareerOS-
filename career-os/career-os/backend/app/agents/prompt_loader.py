@@ -14,9 +14,6 @@ from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
 
-RESUME_PLACEHOLDER = "{resume_text}"
-JOB_PLACEHOLDER = "{job_description_text}"
-
 
 class PromptFileError(RuntimeError):
     """File prompt thiếu section bắt buộc hoặc sai định dạng."""
@@ -28,15 +25,23 @@ class LoadedPrompt:
     system_prompt: str
     user_template: str
 
-    def render_user_prompt(self, *, resume_text: str, job_description_text: str) -> str:
-        """Thay placeholder bằng `replace` chứ không phải `str.format`.
+    def render_user_prompt(self, **replacements: str) -> str:
+        """Generic — nhận bất kỳ số placeholder nào (`resume_text`, `job_description_text`,
+        `match_context`, ...), dùng `replace` chứ không phải `str.format`.
 
-        Resume và JD là text tự do, hoàn toàn có thể chứa dấu `{` `}` (ví dụ đoạn code trong CV).
-        `str.format` sẽ vỡ hoặc hiểu nhầm chúng thành field name.
+        Resume/JD/match_context là text tự do, hoàn toàn có thể chứa dấu `{` `}` (ví dụ đoạn
+        code trong CV). `str.format` sẽ vỡ hoặc hiểu nhầm chúng thành field name.
+
+        BUG ĐÃ VERIFY ở bản cũ (chỉ nhận đúng `resume_text`/`job_description_text` qua tham số
+        tên cố định): gọi hàm với placeholder thứ 3 không có trong chữ ký (vd. `match_context`
+        cho cover letter) không hề báo lỗi — placeholder đó chỉ đơn giản không được thay thế,
+        giữ nguyên dạng `{match_context}` trong chuỗi gửi thẳng cho LLM. `**kwargs` sửa tận gốc:
+        thay bao nhiêu key được truyền vào thì thay bấy nhiêu, không giới hạn cứng 2 tham số.
         """
-        return self.user_template.replace(RESUME_PLACEHOLDER, resume_text).replace(
-            JOB_PLACEHOLDER, job_description_text
-        )
+        rendered = self.user_template
+        for key, value in replacements.items():
+            rendered = rendered.replace("{" + key + "}", value)
+        return rendered
 
 
 def _split_sections(markdown: str) -> dict[str, list[str]]:
@@ -115,10 +120,16 @@ def load_prompt(version: str) -> LoadedPrompt:
             f"{path.name}: section '## User Prompt Template' phải chứa 1 khối code fence."
         )
 
-    for placeholder in (RESUME_PLACEHOLDER, JOB_PLACEHOLDER):
-        if placeholder not in user_template:
-            raise PromptFileError(f"{path.name}: user template thiếu placeholder {placeholder}.")
-
+    # KHÔNG kiểm tra placeholder cụ thể nào ở đây nữa. BUG ĐÃ VERIFY 2 LẦN LIÊN TIẾP: bản đầu
+    # bắt buộc CẢ {resume_text} lẫn {job_description_text} (viết từ lúc chỉ có matching_agent,
+    # luôn cần cả 2); sửa lần 1 chỉ còn bắt buộc {job_description_text} khi thêm
+    # scam_detection_agent (không cần resume) — tưởng đã tổng quát nhưng vẫn hardcode 1 giả định
+    # mới ("mọi agent đều có job_description_text"). Giờ thêm email_classifier_agent (không có
+    # cả 2, chỉ có {sender}/{subject}/{body_text}) chứng minh giả định đó cũng sai — KHÔNG còn
+    # placeholder nào chung cho MỌI agent để bắt buộc ở tầng loader. An toàn thật sự nằm ở test
+    # riêng cho từng file prompt (xem `tests/test_prompt_and_parsing.py`), không phải 1 rule
+    # chung đoán trước ở đây — mỗi lần "tổng quát hoá" bằng cách đổi sang 1 placeholder cụ thể
+    # khác lại chỉ trì hoãn cùng 1 lỗi sang agent tiếp theo.
     return LoadedPrompt(
         version=version,
         system_prompt=system_prompt,

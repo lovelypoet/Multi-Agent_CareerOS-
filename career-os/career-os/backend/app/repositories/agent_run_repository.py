@@ -36,12 +36,19 @@ class AgentRunRepository:
         await self.session.flush()
         return run
 
-    async def list_for_job(self, job_id: int) -> list[AgentRun]:
-        """Toàn bộ agent_runs của 1 job, theo đúng thứ tự đã ghi (id ASC) — dùng `id` chứ không
-        phải `created_at` để sắp xếp: 2 row cùng 1 lần chạy ensemble commit trong cùng 1
-        transaction có thể trùng `created_at` (Postgres `now()` ổn định theo transaction), `id`
-        mới phản ánh đúng thứ tự thật.
+    async def list_for_job(self, job_id: int, *, agent_name: str | None = None) -> list[AgentRun]:
+        """agent_runs của 1 job, theo đúng thứ tự đã ghi (id ASC) — dùng `id` chứ không phải
+        `created_at` để sắp xếp: 2 row cùng 1 lần chạy ensemble commit trong cùng 1 transaction
+        có thể trùng `created_at` (Postgres `now()` ổn định theo transaction), `id` mới phản ánh
+        đúng thứ tự thật.
+
+        `agent_name` tuỳ chọn — lọc chỉ lấy row của đúng agent đó (cần thiết từ khi có >1 agent
+        cùng ghi vào bảng này, xem `api/jobs.py::get_job_agent_runs`). Không truyền thì trả TOÀN
+        BỘ agent_runs của job, không phân biệt agent nào (hành vi gốc, tương thích ngược).
         """
-        stmt = select(AgentRun).where(AgentRun.job_id == job_id).order_by(AgentRun.id.asc())
+        stmt = select(AgentRun).where(AgentRun.job_id == job_id)
+        if agent_name is not None:
+            stmt = stmt.where(AgentRun.agent_name == agent_name)
+        stmt = stmt.order_by(AgentRun.id.asc())
         rows = (await self.session.execute(stmt)).scalars().all()
         return list(rows)

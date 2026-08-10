@@ -22,6 +22,13 @@ class ErrorCode:
     PDF_ENCRYPTED = "PDF_ENCRYPTED"
     PDF_EMPTY_TEXT = "PDF_EMPTY_TEXT"
     PDF_PARSE_FAILED = "PDF_PARSE_FAILED"
+    # Phase 3 — cover letter agent
+    APPLICATION_NOT_APPROVED = "APPLICATION_NOT_APPROVED"
+    COVER_LETTER_NOT_FOUND = "COVER_LETTER_NOT_FOUND"
+    # Phase 3 — CV extraction agent
+    CV_KEYWORDS_NOT_FOUND = "CV_KEYWORDS_NOT_FOUND"
+    # Phase 3 việc #4 — tìm kiếm theo ý nghĩa (pgvector)
+    SEARCH_UNAVAILABLE = "SEARCH_UNAVAILABLE"
 
 
 def api_error(status_code: int, code: str, message: str, **extra: object) -> HTTPException:

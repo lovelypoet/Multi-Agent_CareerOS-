@@ -34,3 +34,14 @@ class ResumeRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one()
+
+    async def set_embedding(self, *, resume_id: int, embedding: list[float]) -> None:
+        """Ghi `embedding` cho resume đã tồn tại — TÁCH RIÊNG khỏi `upsert_singleton` vì phụ
+        thuộc kết quả `cv_extraction_agent` chạy SAU khi lưu resume text (xem Phase 3 việc #4
+        mục 3, `api/resume.py::_run_cv_extraction`), không phải lúc nào cũng có sẵn cùng lúc lưu
+        text. Chỉ gọi khi CHẮC CHẮN cần ghi đè — không gọi hàm này nếu muốn giữ nguyên embedding cũ.
+        """
+        resume = await self.session.get(Resume, resume_id)
+        assert resume is not None, f"set_embedding gọi với resume_id không tồn tại: {resume_id}"
+        resume.embedding = embedding
+        await self.session.flush()

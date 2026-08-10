@@ -13,6 +13,11 @@ export type UpdatableApplicationStatus = "approved" | "rejected";
 // verdict, cần người xem lại thủ công — xem AgentRunsDetail.tsx.
 export type AnalysisStatus = "analyzed" | "failed" | "needs_review" | "pending";
 
+export type RiskLevel = "low" | "medium" | "high";
+// TÁCH RIÊNG khỏi AnalysisStatus dù trùng 4 giá trị — 2 agent độc lập (matching, scam_detection),
+// 2 trạng thái độc lập, không gộp chung 1 field (xem BE `schemas/job.py`).
+export type ScamCheckStatus = "analyzed" | "failed" | "needs_review" | "pending";
+
 export interface Job {
   id: number;
   title: string | null;
@@ -21,6 +26,33 @@ export interface Job {
   description: string;
   source: JobSource;
   created_at: string;
+}
+
+// Phase 3 việc #1 (giai đoạn 1) — Gmail monitoring, chỉ đọc & phân loại.
+export type EmailCategory =
+  | "rejection"
+  | "interview_invite"
+  | "follow_up_question"
+  | "other_relevant";
+
+export interface EmailNotification {
+  id: number;
+  account_email: string;
+  gmail_message_id: string;
+  is_relevant: boolean;
+  job_id: number | null;
+  category: EmailCategory | null;
+  company_name_mentioned: string | null;
+  summary: string;
+  sender: string;
+  subject: string;
+  received_at: string;
+  created_at: string;
+}
+
+export interface EmailNotificationWithJob {
+  notification: EmailNotification;
+  job: Job | null;
 }
 
 export interface MatchResult {
@@ -36,11 +68,25 @@ export interface MatchResult {
   created_at: string;
 }
 
+export interface ScamAssessment {
+  id: number;
+  job_id: number;
+  is_suspicious: boolean;
+  risk_level: RiskLevel;
+  red_flags: string[];
+  reasoning: string;
+  created_at: string;
+}
+
 export interface JobWithMatch {
   job: Job;
   match: MatchResult | null;
   application_status: ApplicationStatus;
   analysis_status: AnalysisStatus;
+  // Độc lập hoàn toàn với match/analysis_status — 2 agent chạy độc lập, không cái nào chặn cái
+  // nào (xem BE `api/jobs.py::analyze_job`).
+  scam: ScamAssessment | null;
+  scam_check_status: ScamCheckStatus;
 }
 
 export interface AgentRunDetail {
@@ -78,6 +124,23 @@ export interface Resume {
   created_at: string;
 }
 
+// Phase 3 việc #4 (giai đoạn 1) — CV extraction agent, bổ sung bộ lọc Phase 1.
+export interface CVExtractedKeywords {
+  resume_id: number;
+  domains: string[];
+  key_skills: string[];
+  updated_at: string;
+  created_at: string;
+}
+
+export interface CoverLetter {
+  id: number;
+  job_id: number;
+  resume_id: number;
+  content: string;
+  created_at: string;
+}
+
 export const ErrorCode = {
   RESUME_NOT_FOUND: "RESUME_NOT_FOUND",
   AGENT_FAILED: "AGENT_FAILED",
@@ -89,6 +152,10 @@ export const ErrorCode = {
   PDF_ENCRYPTED: "PDF_ENCRYPTED",
   PDF_EMPTY_TEXT: "PDF_EMPTY_TEXT",
   PDF_PARSE_FAILED: "PDF_PARSE_FAILED",
+  APPLICATION_NOT_APPROVED: "APPLICATION_NOT_APPROVED",
+  COVER_LETTER_NOT_FOUND: "COVER_LETTER_NOT_FOUND",
+  CV_KEYWORDS_NOT_FOUND: "CV_KEYWORDS_NOT_FOUND",
+  SEARCH_UNAVAILABLE: "SEARCH_UNAVAILABLE",
   NETWORK: "NETWORK",
   UNKNOWN: "UNKNOWN",
 } as const;
@@ -194,6 +261,10 @@ export function getResume(): Promise<Resume> {
   return request<Resume>("/api/resume");
 }
 
+export function getExtractedKeywords(): Promise<CVExtractedKeywords> {
+  return request<CVExtractedKeywords>("/api/resume/extracted-keywords");
+}
+
 /**
  * Upload CV dạng PDF. KHÔNG được gọi qua `request()` ở trên — hàm đó set cứng
  * `Content-Type: application/json` cho mọi request.
@@ -242,6 +313,32 @@ export function getDashboardSummary(): Promise<DashboardSummary> {
   return request<DashboardSummary>("/api/dashboard/summary");
 }
 
-export function getJobAgentRuns(jobId: number): Promise<AgentRunDetail[]> {
-  return request<AgentRunDetail[]>(`/api/jobs/${jobId}/agent-runs`);
+/**
+ * `agentName` tuỳ chọn — lọc chỉ lấy row của đúng agent đó (vd. "scam_detection_agent"), cần
+ * thiết từ khi có >1 agent cùng khả năng rơi vào needs_review (matching, scam). Không truyền
+ * thì trả TOÀN BỘ agent_runs của job như hành vi cũ (tương thích ngược).
+ */
+export function getJobAgentRuns(jobId: number, agentName?: string): Promise<AgentRunDetail[]> {
+  const query = agentName ? `?agent_name=${encodeURIComponent(agentName)}` : "";
+  return request<AgentRunDetail[]>(`/api/jobs/${jobId}/agent-runs${query}`);
+}
+
+export function createCoverLetter(jobId: number): Promise<CoverLetter> {
+  return request<CoverLetter>(`/api/jobs/${jobId}/cover-letter`, { method: "POST" });
+}
+
+export function getCoverLetter(jobId: number): Promise<CoverLetter> {
+  return request<CoverLetter>(`/api/jobs/${jobId}/cover-letter`);
+}
+
+export function getEmailNotifications(): Promise<EmailNotificationWithJob[]> {
+  return request<EmailNotificationWithJob[]>("/api/email-notifications");
+}
+
+/**
+ * Tìm kiếm job theo ý nghĩa (Phase 3 việc #4 mục 5) — `q` là câu tự nhiên, không phải từ khóa
+ * chính xác. Chỉ trả job đã có embedding — job cũ trước tính năng này sẽ không xuất hiện.
+ */
+export function searchJobs(q: string): Promise<Job[]> {
+  return request<Job[]>(`/api/jobs/search?q=${encodeURIComponent(q)}`);
 }

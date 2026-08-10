@@ -60,6 +60,40 @@ class TestPromptLoader:
             load_prompt("matching_v99_khong_ton_tai")
 
 
+class TestGenericRenderUserPrompt:
+    """`render_user_prompt` phải generic (`**kwargs`), không hardcode đúng 2 tham số — bug đã
+    verify: gọi với placeholder thứ 3 (vd. `match_context` cho cover letter) trên chữ ký cũ
+    không hề báo lỗi, chỉ âm thầm giữ nguyên `{match_context}` trong prompt gửi cho model."""
+
+    def test_render_replaces_three_placeholders(self):
+        rendered = load_prompt("cover_letter_v1").render_user_prompt(
+            resume_text="RESUME_HERE",
+            job_description_text="JD_HERE",
+            match_context="MATCH_CONTEXT_HERE",
+        )
+        assert "RESUME_HERE" in rendered
+        assert "JD_HERE" in rendered
+        assert "MATCH_CONTEXT_HERE" in rendered
+        assert "{resume_text}" not in rendered
+        assert "{job_description_text}" not in rendered
+        assert "{match_context}" not in rendered
+
+    def test_two_param_call_still_works_on_two_placeholder_template(self):
+        """Tương thích ngược: cách gọi cũ của matching_agent (đúng 2 tham số) vẫn hoạt động y
+        hệt sau khi đổi sang `**kwargs`."""
+        rendered = load_prompt("matching_v1").render_user_prompt(
+            resume_text="RESUME_HERE", job_description_text="JD_HERE"
+        )
+        assert "RESUME_HERE" in rendered and "JD_HERE" in rendered
+        assert "{resume_text}" not in rendered and "{job_description_text}" not in rendered
+
+    def test_extra_kwarg_with_no_matching_placeholder_is_a_no_op(self):
+        rendered = load_prompt("matching_v1").render_user_prompt(
+            resume_text="R", job_description_text="J", unused_key="SHOULD_NOT_APPEAR"
+        )
+        assert "SHOULD_NOT_APPEAR" not in rendered
+
+
 class TestParseAgentJson:
     VALID = '{"score": 80, "verdict": "good_match", "reasoning": "ok", ' \
             '"matched_requirements": [], "missing_requirements": [], "suggestions": []}'

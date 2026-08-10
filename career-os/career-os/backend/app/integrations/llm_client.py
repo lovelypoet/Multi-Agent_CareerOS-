@@ -25,6 +25,14 @@ class LLMResponse:
 
 
 class LLMClient(Protocol):
+    """`response_schema` — JSON Schema (`<Output>.model_json_schema()`) của CHÍNH agent đang
+    gọi, PHẢI truyền tường minh mỗi lần gọi `complete()`, KHÔNG có schema mặc định nào ở tầng
+    client (đã có tiền lệ hardcode `MatchOutput` gây lỗi cho mọi agent khác dùng chung
+    `OllamaClient` — xem `ollama_client.py`). `AnthropicClient` nhận nhưng bỏ qua tham số này
+    (Claude không có structured output kiểu grammar-constrained decoding, vẫn dựa vào prompt +
+    `parse_agent_json` fallback). `OllamaClient` dùng để ép `format=` — `None` thì không ép gì
+    cả, model tự do trả JSON theo hướng dẫn trong prompt."""
+
     async def complete(
         self,
         *,
@@ -32,4 +40,5 @@ class LLMClient(Protocol):
         user_content: str,
         max_tokens: int | None = None,
         temperature: float = 0.0,
+        response_schema: dict | None = None,
     ) -> LLMResponse: ...

@@ -2,10 +2,12 @@
 
 from fastapi import APIRouter
 
-from app.api import applications, dashboard, jobs, resume
+from app.api import applications, cover_letters, dashboard, email_notifications, jobs, resume
 
 api_router = APIRouter()
 api_router.include_router(jobs.router)
 api_router.include_router(resume.router)
 api_router.include_router(applications.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(cover_letters.router)
+api_router.include_router(email_notifications.router)

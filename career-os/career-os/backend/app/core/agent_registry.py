@@ -17,6 +17,10 @@ from app.core.agent_contract import AgentUnavailableError, BaseAgent
 # tên agent -> "module:ClassName" (module private, import lazy)
 _AGENT_PATHS: dict[str, str] = {
     "matching_agent": "app.agents.matching_agent:MatchingAgent",
+    "cover_letter_agent": "app.agents.cover_letter_agent:CoverLetterAgent",
+    "scam_detection_agent": "app.agents.scam_detection_agent:ScamDetectionAgent",
+    "email_classifier_agent": "app.agents.email_classifier_agent:EmailClassifierAgent",
+    "cv_extraction_agent": "app.agents.cv_extraction_agent:CVExtractionAgent",
 }
 
 

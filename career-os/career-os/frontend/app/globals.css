@@ -39,6 +39,12 @@
      verdict-partial, đỏ của verdict-weak, và xám của badge "Chưa phân tích được". */
   --needs-review: #8a6d0a;
   --needs-review-bg: #f6efd0;
+
+  /* Cảnh báo scam (scam_detection_agent) — đỏ báo động chuẩn, CỐ Ý tách biệt khỏi verdict-weak
+     (đỏ đất trầm, ý nghĩa "chưa phù hợp") — đây là cảnh báo an toàn, không thể mờ nhạt hay lẫn
+     với ý nghĩa "job không phù hợp". */
+  --scam-warning: #dc2626;
+  --scam-warning-bg: #fee2e2;
 }
 
 body {

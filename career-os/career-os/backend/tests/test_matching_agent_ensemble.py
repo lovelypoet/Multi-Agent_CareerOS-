@@ -17,7 +17,7 @@ from app.core.agent_contract import AgentContext, AgentExecutionError
 from app.core.db import SessionLocal
 from app.integrations.ollama_client import OllamaCallError
 from app.models import AgentRun, Job, MatchResult
-from tests.conftest import FakeAnthropicClient
+from tests.conftest import FakeAnthropicClient, _default_scam_agent
 
 # Không test nào ở đây đụng DB, nhưng vẫn phải khớp loop_scope="session" với các file test
 # khác trong suite, nếu không sẽ làm hỏng event loop mà engine module-level (conftest.py)
@@ -159,9 +159,15 @@ async def _count(model) -> int:
 
 
 @pytest.fixture
-def fake_ensemble_agent(monkeypatch):
-    """Patch `app.api.jobs.get_agent` để trả về MatchingAgent ensemble với 2 client giả —
-    dùng để test luồng thật qua `POST /api/jobs/analyze`, không chỉ gọi thẳng MatchingAgent."""
+def fake_ensemble_agent(_agent_registry_patch):
+    """Cài `matching_agent` = MatchingAgent ensemble với 2 client giả qua registry dùng chung
+    (`_agent_registry_patch`, conftest.py) — dùng để test luồng thật qua `POST /api/jobs/analyze`,
+    không chỉ gọi thẳng MatchingAgent.
+
+    Tự cài thêm 1 `scam_detection_agent` giả AN TOÀN mặc định (`setdefault`, giống `fake_agent`)
+    — `scam_detection_agent` giờ chạy ĐỘC LẬP trong CÙNG luồng `analyze_job`, test ensemble
+    matching không quan tâm gì tới scam vẫn cần 1 fake hợp lệ cho agent đó.
+    """
 
     def _install(
         *,
@@ -173,7 +179,8 @@ def fake_ensemble_agent(monkeypatch):
         client_a = _fake_client(model_a, response=response_a)
         client_b = _fake_client(model_b, response=response_b)
         agent = MatchingAgent(ensemble_clients=[client_a, client_b])
-        monkeypatch.setattr("app.api.jobs.get_agent", lambda name: agent)
+        _agent_registry_patch["matching_agent"] = agent
+        _agent_registry_patch.setdefault("scam_detection_agent", _default_scam_agent())
         return agent
 
     return _install
@@ -220,8 +227,16 @@ async def test_ensemble_disagreement_skips_match_result_via_real_endpoint(client
 
     assert await _count(MatchResult) == 0
 
+    # Lọc theo agent_name='matching_agent' — job này giờ CŨNG có agent_runs của
+    # scam_detection_agent (chạy độc lập, xem Phase 3 việc #3), không lọc sẽ đếm lẫn cả 2 agent.
     async with SessionLocal() as session:
-        runs = (await session.execute(select(AgentRun).where(AgentRun.job_id == job_id))).scalars().all()
+        runs = (
+            await session.execute(
+                select(AgentRun).where(
+                    AgentRun.job_id == job_id, AgentRun.agent_name == "matching_agent"
+                )
+            )
+        ).scalars().all()
     assert len(runs) == 2
     assert all(run.error is None for run in runs)  # cả 2 model chạy đúng, không phải lỗi
 

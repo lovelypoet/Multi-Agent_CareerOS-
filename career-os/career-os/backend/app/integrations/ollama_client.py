@@ -8,11 +8,20 @@ thích OpenAI) — đơn giản hơn, và async để không chặn event loop c
 
 Ép JSON bằng `format=<json schema>` (structured output thật của Ollama — model chỉ được
 sinh token khớp schema) thay vì chỉ nhắc trong system prompt rồi hy vọng, lỡ sai thì mới
-bắt bằng fallback parser. `format` là tham số CHUNG của `ollama.chat()`, không riêng cho
-1 agent nào — hiện tại chỉ có `matching_agent` nên hardcode thẳng `MatchOutput` ở đây cho
-đơn giản; nếu sau này có thêm agent khác dùng `OllamaClient`, cần thêm tham số
-`response_schema` vào `LLMClient.complete()` để truyền schema linh hoạt hơn, không nên
-over-engineer cho 1 agent duy nhất.
+bắt bằng fallback parser.
+
+BUG ĐÃ VERIFY VÀ SỬA (nghiêm trọng — chạm mọi agent): bản cũ hardcode thẳng
+`format=MatchOutput.model_json_schema()` ở đây, lý luận lúc viết là "hiện tại chỉ có
+matching_agent". Khi `cv_extraction_agent`/`scam_detection_agent`/`email_classifier_agent`
+được thêm sau đó và cũng dùng `OllamaClient` (qua `LLM_PROVIDER=ollama`/`ollama_ensemble`),
+CẢ 3 agent đó thất bại 100% — Ollama ép output đúng hình dạng `MatchOutput`
+(`score`/`verdict`/`reasoning`/...) bất kể prompt/agent nào gọi, dù model "muốn" trả đúng
+field của agent đó (`domains`/`key_skills`, `is_suspicious`/`risk_level`,
+`is_relevant`/`category`) — đã tự tay verify bằng cách chạy thật cả 4 agent qua Ollama thật,
+xem traceback `extra_forbidden`/`missing` khớp chính xác cơ chế này. `format` LÀ tham số
+CHUNG của `ollama.chat()`, không riêng agent nào — client dùng chung TUYỆT ĐỐI không được tự
+quyết định schema; phải nhận `response_schema` từ CHÍNH agent gọi nó (xem `LLMClient.complete`).
+`None` thì không set `format=` gì cả — model tự do trả JSON theo hướng dẫn trong prompt.
 """
 
 from __future__ import annotations
@@ -23,7 +32,6 @@ import ollama
 
 from app.core.config import get_settings
 from app.integrations.llm_client import LLMResponse
-from app.schemas.match import MatchOutput
 
 # Ollama mặc định context window khá nhỏ (2048-4096 tuỳ version) dù qwen2.5:7b hỗ trợ tới
 # 128K — không set tường minh, resume+JD dài có thể bị cắt NGẦM, model phân tích thiếu dữ
@@ -56,11 +64,16 @@ class OllamaClient:
         max_tokens: int | None = None,
         temperature: float = 0.0,
         num_ctx: int = DEFAULT_NUM_CTX,
+        response_schema: dict | None = None,
     ) -> LLMResponse:
         """Gọi model 1 lần, trả về text thô + usage — cùng shape với `AnthropicClient.complete`.
 
         Ollama không nhận `system` riêng như Anthropic — phải build thành message đầu tiên
         trong mảng `messages`.
+
+        `response_schema` PHẢI do agent gọi truyền vào (`<Output>.model_json_schema()` của
+        CHÍNH agent đó) — KHÔNG hardcode schema nào ở đây (xem BUG ĐÃ VERIFY VÀ SỬA ở docstring
+        module). `None` thì không set `format=` gì cả, model tự do trả JSON theo prompt.
         """
         messages = [
             {"role": "system", "content": system},
@@ -77,7 +90,7 @@ class OllamaClient:
                 model=self._model,
                 messages=messages,
                 options=options,
-                format=MatchOutput.model_json_schema(),
+                format=response_schema,
             )
         except ollama.ResponseError as exc:
             raise OllamaCallError(

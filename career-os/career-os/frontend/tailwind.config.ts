@@ -40,6 +40,10 @@ const config: Config = {
           DEFAULT: "var(--needs-review)",
           bg: "var(--needs-review-bg)",
         },
+        "scam-warning": {
+          DEFAULT: "var(--scam-warning)",
+          bg: "var(--scam-warning-bg)",
+        },
       },
       fontFamily: {
         display: ["var(--font-manrope)", "system-ui", "sans-serif"],

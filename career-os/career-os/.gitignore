@@ -11,6 +11,10 @@ venv/
 !.env.example
 !.env.local.example
 
+# --- Gmail OAuth (Phase 3 việc #1) — credential dùng chung + token riêng từng tài khoản ---
+backend/credentials.json
+backend/token_*.json
+
 # --- Node / Next ---
 node_modules/
 .next/

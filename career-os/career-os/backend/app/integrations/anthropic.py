@@ -49,11 +49,18 @@ class AnthropicClient:
         user_content: str,
         max_tokens: int | None = None,
         temperature: float = 0.0,
+        response_schema: dict | None = None,
     ) -> LLMResponse:
         """Gọi model 1 lần, trả về text thô + usage.
 
         `system` đi qua field `system` của API chứ không nhét vào `messages` — đúng như ghi chú
         triển khai trong prompts/matching_v1.md.
+
+        `response_schema` NHẬN nhưng KHÔNG dùng — Claude API không có cơ chế ép schema kiểu
+        grammar-constrained decoding như Ollama; vẫn dựa vào prompt + `parse_agent_json` fallback
+        (đang hoạt động tốt, không đổi gì ở đây). Tham số này tồn tại chỉ để khớp interface
+        `LLMClient`, để `matching_agent.py` gọi `client.complete(..., response_schema=...)` như
+        nhau bất kể provider nào đứng sau, không cần biết client cụ thể có dùng nó hay không.
         """
         started = time.perf_counter()
         try:

@@ -11,11 +11,13 @@ from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.workers.fetch_emails import run_fetch_emails
 from app.workers.fetch_jobs import run_fetch_jobs
 
 logging.basicConfig(
@@ -41,11 +43,23 @@ async def lifespan(app: FastAPI):
         id="fetch_jobs_daily",
         replace_existing=True,
     )
+    # Phase 3 việc #1: quét Gmail vài lần/ngày — khác fetch_jobs (1 lần/ngày là đủ), vì biết có
+    # ai mời phỏng vấn/từ chối gấp gáp hơn hẳn việc fetch job mới không quá khẩn.
+    scheduler.add_job(
+        run_fetch_emails,
+        trigger=IntervalTrigger(hours=settings.gmail_fetch_interval_hours),
+        id="fetch_emails_periodic",
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
         "[scheduler] fetch_jobs lên lịch chạy hàng ngày lúc %02d:%02d",
         settings.fetch_jobs_hour,
         settings.fetch_jobs_minute,
+    )
+    logger.info(
+        "[scheduler] fetch_emails lên lịch chạy mỗi %d giờ",
+        settings.gmail_fetch_interval_hours,
     )
     try:
         yield

@@ -6,9 +6,14 @@ chỉ chạy khi cần, không tự động lặp lại:
 
     cd backend && python -m app.scripts.retry_missing_analyses
 
-Nhắm vào TOÀN BỘ job thiếu match_result, không lọc theo ngày/source — key placeholder có thể
-đã sai từ lúc setup ban đầu, không chỉ hôm nay. An toàn tuyệt đối: chỉ xử lý job CHƯA có kết
-quả, không đụng job đã có (dù thành công hay đã approve/reject).
+Nhắm vào job `analysis_status` là `failed` hoặc `pending`, không lọc theo ngày/source — key
+placeholder có thể đã sai từ lúc setup ban đầu, không chỉ hôm nay. An toàn tuyệt đối: chỉ xử lý
+job CHƯA có kết quả, không đụng job đã có (dù thành công hay đã approve/reject).
+
+KHÔNG retry job `needs_review` (2 model ensemble đã chạy thành công nhưng bất đồng verdict) —
+đây là trạng thái hợp lệ, có chủ đích, chờ người dùng tự xem lại, không phải lỗi kỹ thuật. Hệ
+thống dùng `temperature=0`, retry nhiều khả năng cho lại đúng kết quả bất đồng y hệt, chỉ tốn
+thêm lượt gọi model vô ích (xem `JobRepository.list_without_match_result`).
 
 Tái sử dụng đúng luồng của `POST /api/jobs/analyze` (api/jobs.py) — cùng repository, cùng
 AgentContext, cùng cách log agent_runs. Lấy agent qua `core.agent_registry.get_agent(...)`,

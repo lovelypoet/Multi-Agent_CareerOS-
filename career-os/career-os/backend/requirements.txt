@@ -17,3 +17,9 @@ python-multipart==0.0.32
 # Local model qua Ollama (LLM_PROVIDER=ollama) — optional về mặt vận hành, chỉ cần nếu
 # dùng provider này, nhưng vẫn khai báo bình thường trong requirements.txt.
 ollama==0.6.2
+# Phase 3 việc #1: Gmail monitoring (đọc-only, scope gmail.readonly).
+google-api-python-client==2.198.0
+google-auth-httplib2==0.4.1
+google-auth-oauthlib==1.4.0
+# Phase 3 việc #4: pgvector — lọc rẻ + tìm kiếm theo ý nghĩa.
+pgvector==0.3.6
