@@ -4,9 +4,16 @@
 score how well it fits your resume, warn you about scams, and draft a cover letter. You stay in
 control of every step; nothing is ever submitted on your behalf.**
 
-CareerOS is a personal job-application assistant. It's built as a single FastAPI + Next.js app
-with a small team of purpose-built AI agents running in-process — no microservices, no message
-queue, no vector database service, no browser-automation bot filling out forms for you.
+> An AI engineering portfolio project demonstrating production-minded LLM application design:
+> multi-agent workflows, structured generation, model-provider abstraction, local-model
+> evaluation, retrieval, observability, and human-in-the-loop decision making.
+
+CareerOS is a full-stack AI application that helps a job seeker move from a resume and job
+description to a more informed application decision. The backend saves the user's data, sends
+the relevant context to specialized agents, validates their responses, and presents the results
+in a Next.js dashboard. It also supports scheduled job collection, resume parsing, scam analysis,
+cover-letter drafting, Gmail notifications, and semantic search. The system is intentionally
+simple to run: one FastAPI backend, one Next.js frontend, and PostgreSQL with `pgvector`.
 
 ---
 
@@ -36,6 +43,18 @@ original posting so **you** review, edit, and click submit yourself.
 | **Gmail monitoring** *(opt-in, read-only)* | Watches your inbox for application-related replies (interview invites, rejections, follow-ups) and summarizes them — it never sends or modifies anything. |
 | **Semantic search** | Search your job history in plain language ("data engineering roles for someone with Kubernetes experience") instead of exact keyword matching. |
 | **Resume-aware filtering** | A dedicated agent extracts skills/domains from your resume to automatically broaden the keyword filter used during auto-fetch, on top of the keywords you configure by hand. |
+
+## AI engineering highlights
+
+The project demonstrates practical LLM application engineering: five focused agents use
+versioned prompts and structured Pydantic schemas; a shared client supports both Claude and local
+Ollama models; and every run records its model, prompt version, latency, token usage, output, and
+errors. The matching agent can compare two local models, return a conservative result when they
+agree, and request human review when they disagree. Resume and job text can also be embedded
+locally for semantic search with `pgvector`.
+
+The application is built around human review. It explains match scores, surfaces scam warnings,
+keeps failed analyses retryable, and never submits applications or sends email automatically.
 
 ## Design principles
 
@@ -118,13 +137,12 @@ used anywhere in the project.
 
 ## Tech stack
 
-**Backend:** FastAPI, SQLAlchemy (async) + Alembic, PostgreSQL with `pgvector`, Anthropic SDK,
-Ollama, APScheduler for background jobs.
-
-**Frontend:** Next.js, Tailwind CSS.
-
-**Infra:** Docker Compose for Postgres — everything else runs directly on your machine for fast
-local iteration.
+- **Backend:** Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic
+- **AI:** Anthropic Claude, Ollama, prompt engineering, structured outputs, multi-agent workflows
+- **Search:** PostgreSQL, `pgvector`, local embeddings, semantic search
+- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
+- **Integrations:** Gmail API, ITviec scraping, PDF resume parsing
+- **Operations and testing:** Docker Compose, APScheduler, Pytest, async integration tests
 
 ## Getting started
 
