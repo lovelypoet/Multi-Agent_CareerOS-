@@ -3,37 +3,36 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   Design tokens — NGUỒN DUY NHẤT của tông màu. Không hardcode hex trong component.
-   Tông: hồng trầm (dusty rose) làm accent, nền trung tính sáng.
+   Design tokens — source unique de la palette de l’application.
 --------------------------------------------------------------------------- */
 :root {
-  --color-bg: #fdfafb;
+  --color-bg: #f8fafc;
   --color-surface: #ffffff;
-  --color-surface-muted: #fbf1f4;
-  --color-text: #2b2427;
-  --color-text-muted: #7a6c71;
-  --color-border: #efe1e6;
-  --color-accent: #c9738f;
-  --color-accent-hover: #b45e7b;
-  --color-accent-subtle: #f5dde5;
+  --color-surface-muted: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-subtle: #eef2ff;
 
   /* Màu trạng thái kết quả — tách riêng khỏi accent thương hiệu. */
   --verdict-strong: #3f9b6b;
   --verdict-strong-bg: #e4f4ec;
-  --verdict-good: #c9738f;
-  --verdict-good-bg: #f5dde5;
-  --verdict-partial: #c98a3f;
-  --verdict-partial-bg: #f5e9db;
-  --verdict-weak: #b85c5c;
-  --verdict-weak-bg: #f5e0de;
+  --verdict-good: #2563eb;
+  --verdict-good-bg: #eff6ff;
+  --verdict-partial: #c2410c;
+  --verdict-partial-bg: #fff7ed;
+  --verdict-weak: #b91c1c;
+  --verdict-weak-bg: #fef2f2;
 
   /* Màu trạng thái approve/reject — tách riêng khỏi verdict (verdict = độ phù hợp của
      job, status = quyết định của user). Không dùng lại verdict-strong/weak để tránh
      lẫn 2 khái niệm khác nhau. */
-  --status-approved: #3d6fb4;
-  --status-approved-bg: #e1eaf6;
-  --status-rejected: #6b6470;
-  --status-rejected-bg: #ece9ec;
+  --status-approved: #c2410c;
+  --status-approved-bg: #fff7ed;
+  --status-rejected: #475569;
+  --status-rejected-bg: #f1f5f9;
 
   /* "Cần xem lại thủ công" (ensemble bất đồng verdict) — tông vàng, tách biệt khỏi cam của
      verdict-partial, đỏ của verdict-weak, và xám của badge "Chưa phân tích được". */

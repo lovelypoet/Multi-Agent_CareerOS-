@@ -7,75 +7,63 @@ import {
   updateApplicationStatus,
 } from "@/lib/api";
 
-const STATUS_STYLE: Record<"approved" | "rejected", { label: string; className: string }> = {
-  approved: { label: "Đã approve", className: "bg-status-approved-bg text-status-approved" },
-  rejected: { label: "Đã reject", className: "bg-status-rejected-bg text-status-rejected" },
-};
-
 export default function StatusButtons({
   jobId,
   initialStatus,
+  onStatusChange,
 }: {
   jobId: number;
   initialStatus: ApplicationStatus;
+  onStatusChange?: (status: ApplicationStatus) => void;
 }) {
   const [status, setStatus] = useState<ApplicationStatus>(initialStatus);
   const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleUpdate(next: UpdatableApplicationStatus) {
-    // Chặn bấm lần 2 khi request trước chưa xong — cùng nguyên tắc nút Analyze ở Phase 0.
     if (updating) return;
     setUpdating(true);
+    setError(null);
     try {
       const result = await updateApplicationStatus(jobId, next);
       setStatus(result.status);
+      onStatusChange?.(result.status);
     } catch {
-      // Giữ nguyên trạng thái cũ nếu lỗi — không đoán mò trạng thái mới.
+      setError("Could not update status. Please try again.");
     } finally {
       setUpdating(false);
     }
   }
 
-  if (status === "approved" || status === "rejected") {
-    const style = STATUS_STYLE[status];
-    const otherStatus: UpdatableApplicationStatus = status === "approved" ? "rejected" : "approved";
-    const otherLabel = otherStatus === "approved" ? "Đổi thành Approve" : "Đổi thành Reject";
+  const actions: UpdatableApplicationStatus[] =
+    status === "approved"
+      ? ["rejected"]
+      : status === "rejected"
+        ? ["approved"]
+        : status === "pending"
+          ? ["approved", "rejected"]
+          : [];
 
-    return (
-      <div className="flex shrink-0 items-center gap-2">
-        <span className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${style.className}`}>
-          {style.label}
-        </span>
-        <button
-          type="button"
-          onClick={() => void handleUpdate(otherStatus)}
-          disabled={updating}
-          className="text-[12px] font-semibold text-muted underline decoration-dotted transition-colors duration-150 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {otherLabel}
-        </button>
-      </div>
-    );
-  }
+  if (actions.length === 0) return null;
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
-      <button
-        type="button"
-        onClick={() => void handleUpdate("approved")}
-        disabled={updating}
-        className="rounded-control bg-status-approved-bg px-2.5 py-1 text-[12px] font-semibold text-status-approved transition duration-150 ease-out-soft hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Approve
-      </button>
-      <button
-        type="button"
-        onClick={() => void handleUpdate("rejected")}
-        disabled={updating}
-        className="rounded-control bg-status-rejected-bg px-2.5 py-1 text-[12px] font-semibold text-status-rejected transition duration-150 ease-out-soft hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Reject
-      </button>
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      {actions.map((next) => (
+        <button
+          key={next}
+          type="button"
+          onClick={() => void handleUpdate(next)}
+          disabled={updating}
+          className={`rounded-xl px-3 py-1.5 text-[10px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            next === "approved"
+              ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          {updating ? "Updating…" : next === "approved" ? "Approve" : "Reject"}
+        </button>
+      ))}
+      {error && <span role="alert" className="w-full text-right text-[11px] text-red-600">{error}</span>}
     </div>
   );
 }

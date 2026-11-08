@@ -29,7 +29,7 @@ export default function ErrorNotice({
             href="/resume"
             className="rounded-control bg-accent px-4 py-2 text-caption font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02]"
           >
-            Lưu resume ngay
+            Save resume
           </Link>
         )}
         {onRetry && !needsResume && (
@@ -38,7 +38,7 @@ export default function ErrorNotice({
             onClick={onRetry}
             className="rounded-control border border-line bg-surface px-4 py-2 text-caption font-semibold text-content transition duration-150 ease-out-soft hover:bg-surface-muted hover:scale-[1.02]"
           >
-            Thử lại
+            Try again
           </button>
         )}
       </div>

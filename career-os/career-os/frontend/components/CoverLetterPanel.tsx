@@ -27,7 +27,7 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
         if (!cancelled) setCoverLetter(result);
       })
       .catch((err) => {
-        // Chưa từng tạo cover letter nào là tình huống bình thường, không phải lỗi hiển thị.
+        // L’absence de lettre créée est un état normal.
         if (err instanceof ApiError && err.code === ErrorCode.COVER_LETTER_NOT_FOUND) return;
       })
       .finally(() => {
@@ -48,7 +48,9 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
       setCoverLetter(result);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Không tạo được cover letter. Thử lại sau ít phút.",
+        err instanceof ApiError
+          ? "Could not generate the cover letter. Check your model provider configuration and try again."
+          : "Something went wrong while generating the cover letter. Please try again shortly.",
       );
     } finally {
       setGenerating(false);
@@ -70,7 +72,7 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
   if (checking) {
     return (
       <p className="text-caption text-muted">
-        <PendingDots label="Đang kiểm tra cover letter" />
+        <PendingDots label="Checking for a cover letter" />
       </p>
     );
   }
@@ -85,11 +87,11 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
           className="rounded-control bg-accent px-4 py-2 text-caption font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 disabled:hover:scale-100"
         >
           {generating ? (
-            <PendingDots label="Đang tạo" />
+            <PendingDots label="Generating" />
           ) : coverLetter ? (
-            "Tạo lại"
+            "Regenerate"
           ) : (
-            "Tạo cover letter"
+            "Generate cover letter"
           )}
         </button>
         {coverLetter && (
@@ -98,7 +100,7 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
             onClick={() => void handleCopy()}
             className="rounded-control border border-line bg-surface px-4 py-2 text-caption font-semibold text-content transition duration-150 ease-out-soft hover:bg-surface-muted hover:scale-[1.02]"
           >
-            {copied ? "Đã copy" : "Copy"}
+            {copied ? "Copied" : "Copy"}
           </button>
         )}
       </div>

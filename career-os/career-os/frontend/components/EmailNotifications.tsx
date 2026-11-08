@@ -5,7 +5,7 @@ import { type EmailNotificationWithJob, getEmailNotifications } from "@/lib/api"
 import EmailCategoryBadge from "./EmailCategoryBadge";
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("vi-VN", {
+  return new Date(iso).toLocaleString("en-US", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -26,15 +26,27 @@ function gmailLink(accountEmail: string, messageId: string) {
 
 export default function EmailNotifications() {
   const [items, setItems] = useState<EmailNotificationWithJob[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     getEmailNotifications()
       .then(setItems)
-      .catch(() => setItems([]));
+      .catch(() => {
+        setLoadError(true);
+        setItems([]);
+      });
   }, []);
 
   if (items === null) {
     return null;
+  }
+
+  if (loadError) {
+    return (
+      <section role="alert" className="rounded-2xl border border-red-100 bg-red-50 p-4 text-xs text-red-800">
+        Could not load application emails right now.
+      </section>
+    );
   }
 
   if (items.length === 0) {
@@ -51,11 +63,10 @@ export default function EmailNotifications() {
   return (
     <section>
       <h2 className="font-display text-section-lg font-bold tracking-tight">
-        Email liên quan tới ứng tuyển
+        Application emails
       </h2>
       <p className="mt-3 text-body-lg text-muted">
-        Tự động phát hiện từ Gmail — chỉ đọc và phân loại, bạn tự trả lời/xử lý trực tiếp trên
-        Gmail.
+        Detected and categorized from Gmail in read-only mode. Reply directly from your inbox.
       </p>
 
       <ul className="mt-6 space-y-3">
@@ -81,7 +92,7 @@ export default function EmailNotifications() {
 
             {job && (
               <p className="mt-2 text-caption text-muted">
-                Liên quan tới job: {job.title ?? `#${job.id}`}
+                Related job: {job.title ?? `#${job.id}`}
               </p>
             )}
 
@@ -92,7 +103,7 @@ export default function EmailNotifications() {
                 rel="noopener noreferrer"
                 className="text-caption font-semibold text-accent hover:underline"
               >
-                Mở trong Gmail ↗
+                Open in Gmail <span aria-hidden="true">↗</span>
               </a>
             </div>
           </li>

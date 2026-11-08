@@ -48,7 +48,7 @@ export default function AgentRunsDetail({
       .then(setRuns)
       .catch((err) => {
         setError(
-          err instanceof ApiError ? err.message : "Không tải được chi tiết các lần phân tích.",
+          err instanceof ApiError ? "Could not load analysis details." : "Something went wrong while loading.",
         );
       });
   }, [jobId, agentName]);
@@ -62,11 +62,11 @@ export default function AgentRunsDetail({
   }
 
   if (!runs) {
-    return <p className="text-caption text-muted">Đang tải…</p>;
+    return <p className="text-caption text-muted">Loading…</p>;
   }
 
   if (runs.length === 0) {
-    return <p className="text-caption text-muted">Chưa có lần phân tích nào.</p>;
+    return <p className="text-caption text-muted">No analyses recorded.</p>;
   }
 
   return (
@@ -83,7 +83,7 @@ export default function AgentRunsDetail({
         return (
           <div key={run.id} className="rounded-card border border-line bg-surface-muted p-4">
             <p className="font-display text-caption font-semibold uppercase tracking-wide text-muted">
-              {run.model ?? "Model không rõ"}
+              {run.model ?? "Unknown model"}
             </p>
 
             {run.error ? (

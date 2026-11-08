@@ -41,11 +41,10 @@ function RequirementList({
 export default function MatchCard({ match }: { match: MatchResult }) {
   return (
     <article className="animate-rise-in rounded-card border border-line bg-surface p-8 shadow-card">
-      {/* Điểm số là thứ mắt phải nhìn thấy đầu tiên. */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-display text-caption font-semibold uppercase tracking-wide text-muted">
-            Điểm phù hợp
+            Match score
           </p>
           <div className="mt-2">
             <ScoreCounter value={match.score} />
@@ -58,25 +57,25 @@ export default function MatchCard({ match }: { match: MatchResult }) {
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <RequirementList
-          title="Đáp ứng được"
+          title="Points forts"
           items={match.matched_requirements}
           marker="+"
           markerClass="text-verdict-strong"
-          emptyText="Chưa tìm thấy yêu cầu nào khớp rõ ràng."
+          emptyText="No clear strengths identified."
         />
         <RequirementList
-          title="Còn thiếu"
+          title="Skills to improve"
           items={match.missing_requirements}
           marker="−"
           markerClass="text-verdict-weak"
-          emptyText="Không thiếu yêu cầu nào đáng kể."
+          emptyText="No major gaps identified."
         />
       </div>
 
       {match.suggestions.length > 0 && (
         <div className="mt-8 rounded-card bg-surface-muted p-6">
           <h3 className="font-display text-caption font-semibold uppercase tracking-wide text-muted">
-            Gợi ý sửa CV cho job này
+            Suggestions to tailor your resume
           </h3>
           <ol className="mt-3 space-y-2.5">
             {match.suggestions.map((suggestion, index) => (

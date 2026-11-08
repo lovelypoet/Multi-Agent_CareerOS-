@@ -16,7 +16,7 @@ import SourceBadge from "./SourceBadge";
  */
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("vi-VN", {
+  return new Date(iso).toLocaleString("en-US", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -48,8 +48,8 @@ export default function JobSearch() {
     } catch (err) {
       setError(
         err instanceof ApiError
-          ? err.message
-          : "Đã có lỗi xảy ra khi tìm kiếm. Thử lại sau ít phút.",
+          ? "Search is unavailable right now. Check that the embeddings service is running."
+          : "Something went wrong while searching. Please try again shortly.",
       );
       setResults(null);
     } finally {
@@ -59,16 +59,16 @@ export default function JobSearch() {
 
   return (
     <section>
-      <h2 className="font-display text-body font-semibold tracking-tight">
-        Tìm job theo ý nghĩa
+      <h2 className="font-display text-base font-semibold tracking-tight text-slate-900">
+        Semantic job search
       </h2>
-      <p className="mt-1 text-caption text-muted">
-        Gõ điều bạn muốn tìm bằng ngôn ngữ tự nhiên, không cần đúng từ khóa.
+      <p className="mt-1 text-xs text-muted">
+        Describe the kind of job you’re looking for in your own words.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-3">
         <label htmlFor="job-search-input" className="sr-only">
-          Tìm job theo ý nghĩa
+          Search jobs
         </label>
         <input
           id="job-search-input"
@@ -79,7 +79,7 @@ export default function JobSearch() {
             if (event.key === "Enter") void handleSearch();
           }}
           disabled={searching}
-          placeholder="Ví dụ: việc data engineer cho fresher, làm với Kubernetes…"
+          placeholder="e.g. junior data engineering role with Kubernetes…"
           className="min-w-0 flex-1 rounded-control border border-line bg-surface px-4 py-2.5 text-body outline-none transition-colors duration-150 placeholder:text-muted focus:border-accent disabled:opacity-60"
         />
         <button
@@ -88,7 +88,7 @@ export default function JobSearch() {
           disabled={!canSearch}
           className="rounded-control bg-accent px-5 py-2.5 font-display text-body font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 disabled:hover:scale-100"
         >
-          {searching ? <PendingDots label="Đang tìm" /> : "Tìm"}
+          {searching ? <PendingDots label="Searching" /> : "Search"}
         </button>
       </div>
 
@@ -98,7 +98,7 @@ export default function JobSearch() {
         <div className="mt-4">
           {results.length === 0 ? (
             <p className="text-body text-muted">
-              Không tìm thấy job nào khớp — thử diễn đạt khác xem sao.
+              No matching jobs found. Try a different search.
             </p>
           ) : (
             <ul className="space-y-3">
@@ -123,7 +123,7 @@ export default function JobSearch() {
                           rel="noopener noreferrer"
                           className="mt-1 inline-flex items-center gap-1 text-caption font-semibold text-accent hover:underline"
                         >
-                          Xem tin gốc &amp; tự ứng tuyển ↗
+                          View original posting <span aria-hidden="true">↗</span>
                         </a>
                       )}
                     </div>

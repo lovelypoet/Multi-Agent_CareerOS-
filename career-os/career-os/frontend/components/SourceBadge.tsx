@@ -7,7 +7,7 @@ export default function SourceBadge({ source }: { source: JobSource }) {
 
   return (
     <span className="inline-flex shrink-0 items-center rounded-full bg-accent-subtle px-2.5 py-1 text-[12px] font-semibold text-accent">
-      Tự động
+      Collected
     </span>
   );
 }

@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import func, select
 
+from app.agents.matching_agent import PROMPT_VERSION_BY_PROVIDER
+from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.integrations.anthropic import AnthropicCallError
 from app.models import AgentRun, Job, MatchResult, Resume
@@ -102,7 +104,7 @@ async def test_agent_run_logged_with_usage(client, fake_agent, valid_match_json)
         ).scalar_one()
 
     assert run.agent_name == "matching_agent"
-    assert run.prompt_version == "matching_v1"
+    assert run.prompt_version == PROMPT_VERSION_BY_PROVIDER[get_settings().llm_provider]
     assert run.input_tokens == 1234
     assert run.output_tokens == 567
     assert run.latency_ms == 42

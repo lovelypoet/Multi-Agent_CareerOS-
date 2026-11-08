@@ -1,0 +1,86 @@
+[
+  {
+    "case_id": "strong_backend_python",
+    "resume_text": "Backend engineer with 6 years of production experience. Built and maintained Python and FastAPI services, PostgreSQL schemas and queries, Redis caching, and AWS deployments. Led API design and on-call support for services processing 2 million requests per day.",
+    "job_description": "Backend Engineer. Must have 4+ years of backend experience, strong Python, FastAPI or a similar framework, and PostgreSQL. Nice to have: Redis and AWS. The role builds and operates customer-facing APIs.",
+    "expected_verdict": "strong_match",
+    "rationale": "Meets every stated must-have and both preferred skills with directly relevant production experience."
+  },
+  {
+    "case_id": "strong_frontend_react",
+    "resume_text": "Frontend engineer with 5 years building production applications using React, TypeScript, Next.js, and automated testing with Playwright. Improved accessibility and page performance on a high-traffic commerce site.",
+    "job_description": "Senior Frontend Engineer. Required: 4+ years of frontend development, React, TypeScript, and experience testing production web applications. Nice to have: Next.js and accessibility experience.",
+    "expected_verdict": "strong_match",
+    "rationale": "Exceeds the experience requirement and documents all required and preferred technologies."
+  },
+  {
+    "case_id": "strong_platform_engineer",
+    "resume_text": "Platform engineer with 8 years managing Linux infrastructure and production Kubernetes clusters. Designed AWS architectures with Terraform, built CI/CD pipelines, and led incident response for distributed services.",
+    "job_description": "Platform Engineer. Must have 5+ years in infrastructure, hands-on AWS, Kubernetes, and Terraform. Nice to have: Linux administration and incident management.",
+    "expected_verdict": "strong_match",
+    "rationale": "Provides substantial experience with every required technology and both preferred areas."
+  },
+  {
+    "case_id": "good_react_missing_typescript",
+    "resume_text": "Frontend developer with 3 years of professional experience building React applications in JavaScript. Worked with REST APIs and CSS. No TypeScript experience is listed. Has used Python for small personal scripts.",
+    "job_description": "Frontend Developer. Must have 3+ years of React and production experience with TypeScript. Nice to have: Python and AWS. The team builds and maintains web applications.",
+    "expected_verdict": "good_match",
+    "rationale": "Matches the React and experience requirements but lacks one important required skill, TypeScript."
+  },
+  {
+    "case_id": "good_data_engineer_missing_snowflake",
+    "resume_text": "Data engineer with 5 years using Python, SQL, Airflow, and AWS to build batch data pipelines. Maintained data quality checks and worked with analysts. No Snowflake experience is listed.",
+    "job_description": "Data Engineer. Required: 4+ years, Python, SQL, Airflow, and experience with a cloud data warehouse such as Snowflake. Nice to have: dbt.",
+    "expected_verdict": "good_match",
+    "rationale": "Meets the core pipeline requirements and experience level but has a gap in the specified data warehouse."
+  },
+  {
+    "case_id": "good_qa_missing_java",
+    "resume_text": "QA automation engineer with 4 years writing test suites using Selenium, Playwright, and Python. Tested REST APIs and integrated automated tests into CI pipelines. No Java experience is listed.",
+    "job_description": "QA Automation Engineer. Must have 3+ years of test automation, Java, Selenium, and API testing. Nice to have: Playwright and CI/CD.",
+    "expected_verdict": "good_match",
+    "rationale": "Strongly matches automation, Selenium, and API testing requirements, but misses the required Java skill."
+  },
+  {
+    "case_id": "partial_python_junior",
+    "resume_text": "Junior developer with 18 months of experience writing Python scripts and small Django features. Built a basic REST endpoint and completed an online course. No production cloud or Docker experience.",
+    "job_description": "Backend Developer. Must have 4+ years of professional Python experience, Django, REST API design, Docker, and AWS deployment experience. The role owns production services.",
+    "expected_verdict": "partial_match",
+    "rationale": "Has a relevant Python and Django foundation but falls well short of the experience and operational requirements."
+  },
+  {
+    "case_id": "partial_support_to_backend",
+    "resume_text": "Technical support specialist with 6 years troubleshooting Linux servers and customer issues. Writes basic SQL queries and shell scripts. Has not built production APIs or worked professionally with Python frameworks.",
+    "job_description": "Backend Engineer. Must have 3+ years building production services in Python, experience with a web framework and REST APIs, and working SQL knowledge. Nice to have: Linux operations.",
+    "expected_verdict": "partial_match",
+    "rationale": "Linux and SQL experience are relevant, but the core professional backend and Python requirements are missing."
+  },
+  {
+    "case_id": "partial_analyst_missing_python",
+    "resume_text": "Business analyst with 3 years creating Excel reports and dashboards. Uses SQL for basic joins and filtering, and presents findings to stakeholders. No Python or statistical programming experience.",
+    "job_description": "Data Analyst. Must have 3+ years in analytics, strong SQL, and Python for data analysis. Nice to have: dashboarding and stakeholder communication.",
+    "expected_verdict": "partial_match",
+    "rationale": "Matches the experience, SQL, dashboarding, and communication requirements but lacks required Python analysis skills."
+  },
+  {
+    "case_id": "weak_hospitality_to_distributed_java",
+    "resume_text": "Restaurant manager with 10 years in hospitality operations, staff scheduling, and customer service. Completed an introductory programming course but has no professional software development experience.",
+    "job_description": "Senior Java Engineer. Requires 7+ years building distributed Java services, advanced concurrency, Kafka, and production experience operating high-scale systems.",
+    "expected_verdict": "weak_match",
+    "rationale": "The resume provides no evidence of the required professional software, Java, or distributed-systems experience."
+  },
+  {
+    "case_id": "weak_design_to_sre",
+    "resume_text": "Graphic designer with 6 years creating brand identities and marketing materials using Figma and Adobe Creative Suite. No programming, cloud, or infrastructure experience.",
+    "job_description": "Site Reliability Engineer. Requires 5+ years operating Linux systems, Kubernetes, AWS, Terraform, and production incident response.",
+    "expected_verdict": "weak_match",
+    "rationale": "The candidate's documented experience does not overlap with the core infrastructure requirements."
+  },
+  {
+    "case_id": "weak_admin_to_ml_engineer",
+    "resume_text": "Office administrator with 8 years coordinating schedules, records, and vendor communications. Regularly uses spreadsheets but has no machine learning, Python, or software deployment experience.",
+    "job_description": "Machine Learning Engineer. Must have production Python, model training and evaluation experience, PyTorch, and experience deploying ML services. Requires 3+ years in software engineering.",
+    "expected_verdict": "weak_match",
+    "rationale": "There is no evidence for the required software engineering or machine-learning experience."
+  }
+]

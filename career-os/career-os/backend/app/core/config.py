@@ -25,10 +25,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://careeros:careeros@localhost:5432/careeros"
 
     # --- LLM provider ---------------------------------------------------------
-    # Chọn provider cho matching_agent qua .env, không sửa code. Mặc định vẫn Claude —
-    # đổi hẳn sang local bằng LLM_PROVIDER=ollama, hoặc kiểm tra chéo 2 model local bằng
-    # LLM_PROVIDER=ollama_ensemble (xem matching_agent.py).
-    llm_provider: Literal["anthropic", "ollama", "ollama_ensemble"] = "anthropic"
+    # Chọn provider cho các agent hỗ trợ đổi provider qua .env, không sửa code. Mặc định
+    # dùng Ollama local; có thể chọn Claude hoặc kiểm tra chéo 2 model local.
+    llm_provider: Literal["anthropic", "ollama", "ollama_ensemble"] = "ollama"
 
     # --- Anthropic ----------------------------------------------------------
     anthropic_api_key: str = ""

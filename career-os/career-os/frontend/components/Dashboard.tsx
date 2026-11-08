@@ -25,10 +25,10 @@ export default function Dashboard() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <StatTile label="Job hôm nay" value={summary ? String(summary.jobs_today) : "—"} />
-      <StatTile label="Đã approve" value={summary ? String(summary.approved_count) : "—"} />
+      <StatTile label="Jobs today" value={summary ? String(summary.jobs_today) : "—"} />
+      <StatTile label="Ready to apply" value={summary ? String(summary.approved_count) : "—"} />
       <StatTile
-        label="Điểm trung bình"
+        label="Average match"
         value={summary ? (summary.avg_score === null ? "—" : `${(summary.avg_score / 10).toFixed(1)}/10`) : "—"}
       />
     </div>

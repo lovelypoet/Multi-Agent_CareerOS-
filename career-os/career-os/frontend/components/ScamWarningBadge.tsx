@@ -10,7 +10,7 @@ export default function ScamWarningBadge({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-scam-warning-bg px-2.5 py-1 text-[12px] font-semibold text-scam-warning transition duration-150 ease-out-soft hover:scale-[1.03]"
     >
-      ⚠ Nghi ngờ lừa đảo
+      ⚠ Potential scam
     </button>
   );
 }

@@ -58,11 +58,11 @@ const config: Config = {
         score: ["52px", { lineHeight: "1", letterSpacing: "-0.02em" }],
       },
       borderRadius: {
-        card: "12px",
-        control: "8px",
+        card: "24px",
+        control: "12px",
       },
       boxShadow: {
-        card: "0 1px 3px rgba(43, 36, 39, 0.06)",
+        card: "0 2px 8px rgba(15, 23, 42, 0.05)",
       },
       transitionTimingFunction: {
         "out-soft": "cubic-bezier(0, 0, 0.2, 1)",
