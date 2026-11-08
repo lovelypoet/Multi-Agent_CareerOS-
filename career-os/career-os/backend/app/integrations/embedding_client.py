@@ -18,6 +18,7 @@ số ít đã deprecated. Đã tự tay verify (không chỉ tin theo tài liệ
 from __future__ import annotations
 
 import math
+from typing import Protocol
 
 import ollama
 
@@ -36,29 +37,46 @@ class EmbeddingCallError(RuntimeError):
     mạng, timeout... Cùng triết lý với `OllamaCallError` ở `ollama_client.py`."""
 
 
+class EmbeddingProvider(Protocol):
+    """Embedding capability, intentionally separate from text-generation providers."""
+
+    async def embed(self, text: str) -> list[float]: ...
+
+
+class OllamaEmbeddingProvider:
+    def __init__(self) -> None:
+        self._settings = get_settings()
+        self._client = ollama.AsyncClient(host=self._settings.ollama_host)
+
+    async def embed(self, text: str) -> list[float]:
+        try:
+            response = await self._client.embed(
+                model=self._settings.embedding_model,
+                input=text,
+                options={"num_ctx": DEFAULT_NUM_CTX},
+            )
+        except ollama.ResponseError as exc:
+            raise EmbeddingCallError(
+                f"Ollama returned an error while generating an embedding: {exc}. "
+                f"Run `ollama pull {self._settings.embedding_model}` if the model is missing."
+            ) from exc
+        except Exception as exc:
+            raise EmbeddingCallError(
+                f"Could not connect to Ollama at {self._settings.ollama_host}: {exc}. "
+                "Check that `ollama serve` is running."
+            ) from exc
+
+        return list(response.embeddings[0])
+
+
+def get_embedding_provider() -> EmbeddingProvider:
+    """Return the configured embedding provider; it is independent of the LLM provider."""
+    return OllamaEmbeddingProvider()
+
+
 async def embed_text(text: str) -> list[float]:
-    """Tạo embedding cho 1 chuỗi văn bản, dùng `settings.embedding_model` qua Ollama local."""
-    settings = get_settings()
-    client = ollama.AsyncClient(host=settings.ollama_host)
-
-    try:
-        response = await client.embed(
-            model=settings.embedding_model,
-            input=text,
-            options={"num_ctx": DEFAULT_NUM_CTX},
-        )
-    except ollama.ResponseError as exc:
-        raise EmbeddingCallError(
-            f"Ollama trả lỗi khi tạo embedding: {exc}. "
-            f"Kiểm tra đã chạy `ollama pull {settings.embedding_model}` chưa."
-        ) from exc
-    except Exception as exc:  # kết nối bị từ chối, timeout, ollama serve chưa chạy...
-        raise EmbeddingCallError(
-            f"Không gọi được Ollama tại {settings.ollama_host}: {exc}. "
-            "Kiểm tra `ollama serve` đang chạy chưa."
-        ) from exc
-
-    return list(response.embeddings[0])
+    """Compatibility helper used by current callers; delegate to the embedding interface."""
+    return await get_embedding_provider().embed(text)
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:

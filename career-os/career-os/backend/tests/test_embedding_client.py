@@ -106,6 +106,21 @@ async def test_embed_text_uses_configured_embedding_model(fake_ollama_embed):
 
 
 @async_test
+async def test_embed_text_uses_the_embedding_provider_interface(monkeypatch):
+    class FakeEmbeddingProvider:
+        async def embed(self, text: str) -> list[float]:
+            assert text == "provider seam"
+            return [0.25, 0.75]
+
+    monkeypatch.setattr(
+        "app.integrations.embedding_client.get_embedding_provider",
+        lambda: FakeEmbeddingProvider(),
+    )
+
+    assert await embed_text("provider seam") == [0.25, 0.75]
+
+
+@async_test
 async def test_connection_error_wrapped_with_serve_hint_not_raw_traceback(fake_ollama_embed):
     fake_ollama_embed(error=ConnectionRefusedError("[Errno 111] Connection refused"))
 

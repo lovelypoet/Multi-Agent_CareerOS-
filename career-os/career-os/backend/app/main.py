@@ -1,8 +1,4 @@
-"""CareerOS backend — MỘT process FastAPI duy nhất.
-
-API, repositories và AI agent đều chạy trong process này. Agent là Python package được import
-trực tiếp, không phải service riêng, không có port/Dockerfile riêng.
-"""
+"""CareerOS API process: HTTP routes and lightweight scheduling only."""
 
 from __future__ import annotations
 
@@ -17,8 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.workers.fetch_emails import run_fetch_emails
-from app.workers.fetch_jobs import run_fetch_jobs
+from app.services.scheduling import enqueue_fetch_emails, enqueue_fetch_jobs
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,14 +26,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # APScheduler chạy trong CÙNG process backend (không Redis Queue) — hợp lý cho Phase 1
-    # với 1 process uvicorn duy nhất. LƯU Ý CHO TƯƠNG LAI: nếu sau này chạy uvicorn với
-    # nhiều worker (--workers N), lịch này sẽ khởi tạo N lần và chạy job trùng lặp N lần.
-    # Phase 1 mặc định 1 process nên chưa phải vấn đề, nhưng cần Redis lock hoặc job
-    # nằm ngoài process backend nếu scale sau này.
+    # The scheduler only enqueues idempotent PostgreSQL tasks. Crawling, embeddings, and AI
+    # work run in the separately started `python -m app.worker` process.
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
-        run_fetch_jobs,
+        enqueue_fetch_jobs,
         trigger=CronTrigger(hour=settings.fetch_jobs_hour, minute=settings.fetch_jobs_minute),
         id="fetch_jobs_daily",
         replace_existing=True,
@@ -46,7 +38,7 @@ async def lifespan(app: FastAPI):
     # Phase 3 việc #1: quét Gmail vài lần/ngày — khác fetch_jobs (1 lần/ngày là đủ), vì biết có
     # ai mời phỏng vấn/từ chối gấp gáp hơn hẳn việc fetch job mới không quá khẩn.
     scheduler.add_job(
-        run_fetch_emails,
+        enqueue_fetch_emails,
         trigger=IntervalTrigger(hours=settings.gmail_fetch_interval_hours),
         id="fetch_emails_periodic",
         replace_existing=True,
@@ -70,7 +62,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CareerOS API",
     version="0.1.0",
-    description="Phase 0 — dán job description, chấm điểm match với CV, xem lại lịch sử.",
+    description="CareerOS API for job discovery, resume analysis, matching, and application tracking.",
     lifespan=lifespan,
 )
 

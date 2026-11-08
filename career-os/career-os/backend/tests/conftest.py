@@ -71,7 +71,8 @@ async def _clean_tables():
         await session.execute(
             text(
                 "TRUNCATE agent_runs, match_results, cover_letters, scam_assessments, "
-                "email_notifications, applications, jobs, resumes RESTART IDENTITY CASCADE"
+                "email_notifications, applications, scheduled_tasks, jobs, resumes "
+                "RESTART IDENTITY CASCADE"
             )
         )
         await session.commit()
@@ -138,7 +139,7 @@ def _agent_registry_patch(monkeypatch):
                 f"Chưa cài agent giả nào tên '{name}' trong test (registry: {list(registry)})."
             ) from exc
 
-    monkeypatch.setattr("app.api.jobs.get_agent", _dispatch)
+    monkeypatch.setattr("app.services.matching.get_agent", _dispatch)
     monkeypatch.setattr("app.workers.fetch_jobs.get_agent", _dispatch)
     monkeypatch.setattr("app.scripts.retry_missing_analyses.get_agent", _dispatch)
     monkeypatch.setattr("app.workers.fetch_emails.get_agent", _dispatch)

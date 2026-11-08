@@ -12,6 +12,7 @@ from app.models.email_notification import EmailNotification
 from app.models.job import Job
 from app.models.match_result import MatchResult
 from app.models.resume import Resume
+from app.models.scheduled_task import ScheduledTask
 from app.models.scam_assessment import ScamAssessment
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "ScamAssessment",
     "EmailNotification",
     "CVExtractedKeywords",
+    "ScheduledTask",
 ]
