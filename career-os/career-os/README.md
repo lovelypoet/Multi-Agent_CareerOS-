@@ -1,348 +1,49 @@
 # CareerOS
 
-**Paste a job description — or let it auto-fetch new listings every day — and a set of AI agents
-score how well it fits your resume, warn you about scams, and draft a cover letter. You stay in
-control of every step; nothing is ever submitted on your behalf.**
+**A job-search assistant that helps you decide which opportunities are worth your time.**
 
-> An AI engineering portfolio project demonstrating production-minded LLM application design:
-> multi-agent workflows, structured generation, model-provider abstraction, local-model
-> evaluation, retrieval, observability, and human-in-the-loop decision making.
+Add your resume and a job listing. CareerOS highlights how your experience fits, what may be
+missing, and any possible warning signs—so you can make a more informed choice.
 
-CareerOS is a full-stack AI application that helps a job seeker move from a resume and job
-description to a more informed application decision. The backend saves the user's data, sends
-the relevant context to specialized agents, validates their responses, and presents the results
-in a Next.js dashboard. It also supports scheduled job collection, resume parsing, scam analysis,
-cover-letter drafting, Gmail notifications, and semantic search. The system uses a FastAPI API,
-a separately run lightweight PostgreSQL-polling worker, a Next.js frontend, and PostgreSQL with
-`pgvector`.
+![CareerOS dashboard](./docs/images/careeros-dashboard.png)
 
----
+*Dashboard preview with sample data.*
 
-## Why this exists
+## How it works
 
-Most "AI job application" tools try to fully automate the apply step. CareerOS deliberately
-doesn't. Early in the project, auto-apply (via browser automation) was investigated against a
-real job board and dropped on purpose — not because it was too hard, but because:
+1. Add your resume.
+2. Find jobs or paste in a job description.
+3. Review the match, relevant experience, gaps, and possible scam warnings.
+4. Choose what to do next and keep track of each opportunity in your pipeline.
 
-- Every application form requires a freshly uploaded CV file, so there's no way to "apply with
-  saved resume" safely.
-- Many postings include custom screening questions from the recruiter. Auto-answering those risks
-  sending a wrong or empty answer to a real human on the other end.
+CareerOS offers guidance, not a hiring decision. AI can make mistakes, so review the original job
+posting and decide for yourself. **It never applies for a job or sends an email on your behalf.**
 
-So CareerOS stops one step earlier: it scores, screens, and drafts — then hands you a link to the
-original posting so **you** review, edit, and click submit yourself.
+## What you can do
 
-## What it does
+- See how a job's requirements compare with your resume.
+- Spot potential scam signals and review why a warning appeared.
+- Keep job opportunities and application progress organized in one place.
+- Discover jobs from ITviec and Remote OK, draft cover letters, or optionally sort application
+  emails in read-only mode.
 
-| Feature | Description |
-|---|---|
-| **Fit scoring** | Paste a job description (or let it auto-fetch daily) and an agent scores how well it matches your resume, with reasoning and specific gaps called out. |
-| **Auto-fetch** | A daily background job pulls listings from ITviec and Remote OK, filters out irrelevant/senior-level postings before spending any AI budget on them, and scores the rest automatically. |
-| **Approve / Reject + dashboard** | Track every job you've looked at, mark it approved or rejected, and see a running summary (jobs today, approved count, average score). |
-| **Cover letter drafting** | For any job you've approved, generate a cover letter grounded in your resume and the fit analysis already done — you copy, edit, and send it yourself. |
-| **Scam detection** | An independent agent flags job postings with common scam signals (upfront fees, vague descriptions, pressure tactics). It never hides a job automatically — it just warns you. |
-| **Gmail monitoring** *(opt-in, read-only)* | Watches your inbox for application-related replies (interview invites, rejections, follow-ups) and summarizes them — it never sends or modifies anything. |
-| **Semantic search** | Search your job history in plain language ("data engineering roles for someone with Kubernetes experience") instead of exact keyword matching. |
-| **Resume-aware filtering** | A dedicated agent extracts skills/domains from your resume to automatically broaden the keyword filter used during auto-fetch, on top of the keywords you configure by hand. |
-| **Evidence-based JD matching** | Extract structured JD requirements and tech stack, quote the JD and CV for each requirement, verify quotes against source text, and calculate the score with deterministic required/preferred weights. |
+## Run locally
 
-## AI engineering highlights
+CareerOS is a local development project, not a hosted service. Running it requires Docker, Python,
+Node.js, and Ollama for local AI features.
 
-The project demonstrates practical LLM application engineering: five focused agents use
-versioned prompts and structured Pydantic schemas; a shared client supports both Claude and local
-Ollama models; and every run records its model, prompt version, latency, token usage, output, and
-errors. The matching agent can compare two local models, return a conservative result when they
-agree, and request human review when they disagree. The current matching prompt extracts JD
-requirements and evidence quotes; the server rejects quotes not found in the source documents and
-checks requirement-term overlap before accepting CV evidence, then recomputes the score using a
-fixed weighted rubric. These checks improve auditability but do not prove semantic entailment;
-the user should review each cited excerpt. Resume and job text can also be embedded
-locally for semantic search with `pgvector`.
+1. Copy `infrastructure/.env.example` to `backend/.env` and set any needed options.
+2. Start the database with `docker compose up -d postgres` from `infrastructure/`.
+3. In `backend/`, run `pip install -r requirements.txt` and `alembic upgrade head`, then start the
+   API with `uvicorn app.main:app --reload --port 8000`. Run `python -m app.worker` in a second
+   terminal to enable scheduled job collection.
+4. In `frontend/`, copy `.env.local.example` to `.env.local`, run `npm install` and `npm run dev`,
+   then open <http://localhost:3000>.
 
-The application is built around human review. It explains match scores, surfaces scam warnings,
-keeps failed analyses retryable, and never submits applications or sends email automatically.
+For local AI matching, start Ollama and download the models configured for the project. Cover-letter
+drafting also requires an Anthropic API key.
 
-### Retrieval experiment
+## More about the project
 
-The matching path includes an isolated hybrid-retrieval experiment that combines local embedding
-similarity with BM25 term relevance and an explainable reranking score. It is not enabled in the
-production matching service: the current synthetic benchmark has not shown a reliable verdict
-accuracy improvement, and real-profile retrieval needs reviewed evidence labels. Run
-`python -m app.scripts.evaluate_resume_retrieval` from `backend/` to compare dense-only and hybrid
-retrieval on the hand-labeled retrieval set. Run
-`python -m app.scripts.evaluate_matching_rag` from `backend/` to compare full-resume matching with
-retrieved-context matching using the configured local model.
-
-## Design principles
-
-A few decisions shape most of the codebase, in case they explain something you're wondering about:
-
-- **No auto-apply, by design.** See [Why this exists](#why-this-exists) above.
-- **Never decide silently for the user.** When two independent model runs disagree (see
-  [Local models](#local-models) below), or when a scam warning appears, the system
-  surfaces both signals and lets the human decide — it never picks a side or hides a result.
-- **Agents are a library, not a service.** Each agent is a plain Python class. API matching is
-  coordinated by an application service; scheduled crawling and email scans are executed by a
-  separate worker process. There is no broker or network hop between the worker and agents.
-- **Fail loud, keep the data.** A job or resume is saved *before* any AI call runs. If the AI call
-  fails, you keep your data and can retry — you never lose what you typed because a model call
-  timed out.
-
-## Architecture
-
-### How the pieces work together
-
-The browser UI and PostgreSQL database are separate from the backend application. The backend
-connects them: it receives HTTP requests from the frontend, coordinates the work, and reads or
-writes data through repositories.
-
-```mermaid
-flowchart TD
-    User[User] <--> UI[Next.js frontend<br/>pages and components]
-    UI --> Client[Typed REST client<br/>frontend/lib/api.ts]
-    Client <-->|HTTP / JSON| API[FastAPI routes<br/>/api/*]
-
-    API --> Services[Application services<br/>business workflows]
-    Services --> Repos[Repositories]
-    Repos --> Models[SQLAlchemy models and async session]
-    Models <--> DB[(PostgreSQL<br/>pgvector)]
-
-    Services --> Registry[Agent registry]
-    Registry --> Agents[AI agents<br/>matching, scam, CV, email, cover letter]
-    Agents --> Integrations[Integrations<br/>Claude / Ollama / Gmail / ITviec / Remote OK]
-    Integrations --> Providers[External services or local models]
-    Providers --> Integrations
-    Agents --> Services
-
-    Scheduler[APScheduler<br/>enqueue-only callbacks] --> Queue[(PostgreSQL<br/>scheduled_tasks)]
-    Queue --> Worker[Separate worker process<br/>PostgreSQL polling + leases]
-    Worker --> Repos
-    Worker --> Registry
-    Worker --> Integrations
-
-    Migrations[Alembic migrations] --> DB
-```
-
-### End-to-end flow
-
-The user saves a resume, then discovers opportunities either by pasting a job description or
-through scheduled ITviec and Remote OK collection. Remote OK listings use its public JSON API,
-show the source name, and link back to the original posting. For a manually submitted job, the FastAPI route delegates to
-`MatchingService`, which checks for a saved resume, persists the job before calling AI, and runs
-matching and scam assessment as independent agent tasks through the registry. Agent-run records
-and successful results are stored in PostgreSQL; each match points to the resume record used.
-After reviewing a job, the user can approve or reject it, and can request a cover letter for an
-approved job. Application status is stored separately from match results. The optional Gmail
-integration reads and classifies messages; CareerOS does not send applications or email on the
-user's behalf.
-
-Scheduled discovery and inbox scans follow a separate path: APScheduler enqueues deduplicated
-tasks in PostgreSQL, and the standalone worker claims them with row locks and leases before running
-the job or email handlers. Thus, scheduled crawling and its AI work do not block HTTP requests;
-manual matching still waits for its agents to finish. LLM generation (`LLMClient`) and vector
-generation (`EmbeddingProvider`) are separate capabilities, with embeddings used for semantic
-search and resume-aware job filtering. Resume storage is still a singleton rather than immutable,
-versioned resume records, so version-safe extraction and matching remain future work.
-
-### Repository layout
-
-```
-career-os/
-├── frontend/          Next.js + Tailwind — talks to the backend over a typed REST client
-├── backend/
-│   ├── app/
-│   │   ├── api/            REST endpoints (jobs, resume, applications, dashboard, cover
-│   │   │                   letters, email notifications)
-│   │   ├── services/       application use cases and enqueue-only scheduler callbacks
-│   │   ├── core/            settings, DB session, the public agent contract + registry
-│   │   ├── models/          SQLAlchemy models (single source of truth for the schema)
-│   │   ├── repositories/    all SQL lives here, never inline in API handlers
-│   │   ├── schemas/         Pydantic contracts shared between agents and the API layer
-│   │   ├── integrations/    one file per external system (Claude, Ollama, ITviec, Remote OK, Gmail,
-│   │   │                    PDF parsing, local embeddings) — nothing else talks to them
-│   │   │                    directly
-│   │   ├── workers/         job/email task handlers
-│   │   ├── worker.py        standalone PostgreSQL queue poller
-│   │   ├── agents/          the AI agents themselves (see below)
-│   │   └── prompts/         one Markdown file per agent per prompt version
-│   ├── migrations/          Alembic
-│   └── tests/
-└── infrastructure/    docker-compose (Postgres + pgvector)
-```
-
-### The agents
-
-Five small, single-purpose agents, each with its own prompt file and output schema:
-
-| Agent | Job |
-|---|---|
-| `matching_agent` | Scores resume-vs-job fit |
-| `scam_detection_agent` | Flags suspicious postings, independently of the fit score |
-| `cover_letter_agent` | Drafts a cover letter |
-| `cv_extraction_agent` | Pulls skills/domains out of a resume to widen the auto-fetch filter |
-| `email_classifier_agent` | Classifies whether a Gmail message is application-related |
-
-They're accessed only through a small registry (`core/agent_registry.py`) that resolves an agent
-by name at runtime. The rest of the codebase (`api/`, `workers/`) never imports an agent module
-directly — it only knows the shared `BaseAgent` contract. This keeps a clean boundary: the
-`agents/` and `prompts/` folders could be removed entirely for a stripped-down public build, and
-the rest of the app would still start up fine (it would just return a clear "not available" error
-for the endpoints that need them).
-
-### Local models
-
-Agents that follow the configured LLM provider use a local model via [Ollama](https://ollama.com)
-by default. Set `LLM_PROVIDER` in `.env` to switch providers:
-
-| Value | Meaning |
-|---|---|
-| `ollama` *(default)* | one local model, free, runs on your machine |
-| `anthropic` | Claude — pay-per-token |
-| `ollama_ensemble` | two independent local models, cross-checked against each other |
-
-Install and start Ollama, then download the default model:
-
-```bash
-ollama pull qwen2.5:7b
-```
-
-The ensemble additionally needs `ollama pull llama3.1:8b`. Cover-letter drafting currently uses
-Anthropic directly regardless of `LLM_PROVIDER`, so it still needs a valid `ANTHROPIC_API_KEY`.
-Semantic search and resume-aware filtering also use a separate local embedding model, regardless
-of `LLM_PROVIDER`:
-
-```bash
-ollama pull nomic-embed-text-v2-moe
-```
-
-`ollama_ensemble` exists because a single small local model tends to misjudge the same kinds of
-borderline cases consistently (not random noise, so re-running doesn't help). Running two
-architecturally different models and only trusting the result when they *agree* catches this —
-when they disagree, the job is marked `needs_review` instead of guessing. The reasoning and the
-actual numbers behind this decision are written up in
-[`docs/hybrid-model-journey.md`](docs/hybrid-model-journey.md).
-
-Semantic search and resume-aware filtering use a local embedding model
-(`nomic-embed-text-v2-moe` via Ollama) regardless of `LLM_PROVIDER` — no paid embedding API is
-used anywhere in the project.
-
-### Evaluating the matching agent
-
-The backend includes a balanced, hand-authored benchmark for the matching agent:
-[`backend/evals/matching.json`](backend/evals/matching.json). It has 24 synthetic resume/job
-pairs, with six expected examples for each verdict. Run it from `backend/` with the same provider
-and model configuration you use for the app:
-
-```bash
-python -m app.scripts.evaluate_matching
-python -m app.scripts.evaluate_matching --output matching-evaluation.md
-```
-
-The runner calls the configured matching agent for every case and reports exact-verdict accuracy,
-macro F1, per-verdict precision/recall/F1, model latency and token usage, plus every incorrect,
-failed, or review-required case. Each evaluation makes real model calls (two per case in
-`ollama_ensemble` mode), so it may incur API cost or use local-model resources. It does not need
-the app's database.
-
-The expected labels are scenario-based annotations, not independently adjudicated hiring
-decisions. Treat results as a development benchmark—not a production-quality guarantee—
-and record the provider, model, prompt version, and report when comparing runs. Do not put an unrun
-or fabricated score on a CV.
-
-For a live-data smoke benchmark, run from `backend/`:
-
-```bash
-python -m app.scripts.evaluate_live_jobs --output evals/live-itviec-matching.md
-```
-
-This fetches current listings and descriptions from three distinct employers in the configured
-ITviec AI/ML category, then tests four controlled synthetic candidate profiles against each job.
-Descriptions are held in memory for inference and are not copied into the report. The generated
-labels are scenario-based, not independently adjudicated ground truth; use this to inspect behavior
-on current postings, not to claim real-world accuracy. The command needs network access, a running
-Ollama service/model when using a local provider, and takes longer than the static benchmark.
-
-## Tech stack
-
-- **Backend:** Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic
-- **AI:** Anthropic Claude, Ollama, prompt engineering, structured outputs, multi-agent workflows
-- **Search:** PostgreSQL, `pgvector`, local embeddings, semantic search
-- **Frontend:** Next.js, React, TypeScript, Tailwind CSS
-- **Integrations:** Gmail API, ITviec collection, Remote OK public API, PDF resume parsing
-- **Operations and testing:** Docker Compose, APScheduler, Pytest, async integration tests
-
-## Getting started
-
-### 1. Database
-
-```bash
-cd infrastructure
-cp .env.example ../backend/.env    # fill in ANTHROPIC_API_KEY if you want cover-letter drafting
-docker compose up -d postgres
-```
-
-### 2. Backend
-
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
-```
-
-API docs live at <http://localhost:8000/docs>.
-
-Run the background worker in a **second backend terminal** (from `backend/`), using the same
-environment and database configuration:
-
-```bash
-python -m app.worker
-```
-
-The API's APScheduler only writes scheduled tasks to PostgreSQL. The worker polls every few
-seconds, claims work with `FOR UPDATE SKIP LOCKED`, renews a lease during long runs, and retries
-transient failures up to three times. Start one worker for the MVP; additional workers can share
-the queue safely.
-
-By default the configurable agents use local Ollama (`LLM_PROVIDER=ollama`); Ollama must be running
-with the models listed in [Local models](#local-models) available. Cover-letter drafting still
-requires a real `ANTHROPIC_API_KEY` because that agent currently uses Claude directly.
-
-### 3. Frontend
-
-```bash
-cd frontend
-cp .env.local.example .env.local
-npm install
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-### 4. First run
-
-1. Open the **Resume** tab, paste your resume, click *Save*.
-2. Back on the main page, paste a job description and click *Check fit*.
-3. The result appears immediately, and it's added to your history below — no refresh needed.
-
-## Testing
-
-```bash
-cd backend
-pip install -r requirements-dev.txt
-createdb careeros_test        # or: psql -c "CREATE DATABASE careeros_test OWNER careeros;"
-pytest
-```
-
-Tests run against a real Postgres database (`careeros_test`) rather than SQLite, because the code
-relies on JSONB, `ON CONFLICT`, and window functions that SQLite doesn't faithfully emulate — a
-green SQLite run would be a false sense of safety. All LLM calls are replaced with fakes, so the
-suite costs nothing and needs no network access.
-
-## Further reading
-
-- [`docs/hybrid-model-journey.md`](docs/hybrid-model-journey.md) — the data and reasoning behind
-  the local-model ensemble design, including the two approaches that were tried and abandoned
-  first.
+See [the hybrid-model journey](./docs/hybrid-model-journey.md) for how CareerOS evaluates matching
+approaches.
