@@ -4,7 +4,7 @@
  */
 
 export type Verdict = "strong_match" | "good_match" | "partial_match" | "weak_match";
-export type JobSource = "manual" | "itviec";
+export type JobSource = "manual" | "itviec" | "remoteok";
 export type ApplicationStatus = "pending" | "approved" | "rejected" | "applied";
 // Phase 2 chỉ được ghi 2 giá trị này — 'pending' (không có row) và 'applied' (Phase 3+)
 // không có đường nào được phép gửi lên từ FE.
@@ -17,6 +17,35 @@ export type RiskLevel = "low" | "medium" | "high";
 // TÁCH RIÊNG khỏi AnalysisStatus dù trùng 4 giá trị — 2 agent độc lập (matching, scam_detection),
 // 2 trạng thái độc lập, không gộp chung 1 field (xem BE `schemas/job.py`).
 export type ScamCheckStatus = "analyzed" | "failed" | "needs_review" | "pending";
+export type RequirementPriority = "required" | "preferred";
+export type RequirementCategory =
+  | "skill"
+  | "experience"
+  | "education"
+  | "responsibility"
+  | "location"
+  | "other";
+export type EvidenceStatus = "met" | "partial" | "missing";
+
+export interface JDRequirement {
+  text: string;
+  priority: RequirementPriority;
+  category: RequirementCategory;
+  jd_quote: string;
+}
+
+export interface JDAnalysis {
+  role_title: string | null;
+  experience_level: string | null;
+  tech_stack: string[];
+  requirements: JDRequirement[];
+}
+
+export interface RequirementAssessment {
+  requirement_index: number;
+  status: EvidenceStatus;
+  cv_evidence: string;
+}
 
 export interface Job {
   id: number;
@@ -59,12 +88,16 @@ export interface MatchResult {
   id: number;
   job_id: number;
   resume_id: number;
+  resume_version_number: number | null;
   score: number;
   verdict: Verdict;
   reasoning: string;
   matched_requirements: string[];
   missing_requirements: string[];
   suggestions: string[];
+  jd_analysis: JDAnalysis | null;
+  requirement_assessments: RequirementAssessment[] | null;
+  analysis_basis: "evidence_based" | "legacy";
   created_at: string;
 }
 
@@ -121,16 +154,32 @@ export interface AnalyzeResponse {
 export interface Resume {
   id: number;
   content: string;
+  version_number: number;
+  is_active: boolean;
+  extraction_status: "pending" | "running" | "succeeded" | "empty" | "failed" | "unverified";
+  extraction_error: string | null;
+  embedding_status:
+    | "pending"
+    | "running"
+    | "succeeded"
+    | "empty"
+    | "failed"
+    | "blocked"
+    | "unverified";
+  embedding_error: string | null;
   created_at: string;
 }
 
 // Phase 3 việc #4 (giai đoạn 1) — CV extraction agent, bổ sung bộ lọc Phase 1.
 export interface CVExtractedKeywords {
   resume_id: number;
+  version_number: number;
   domains: string[];
   key_skills: string[];
-  updated_at: string;
-  created_at: string;
+  extraction_status: Resume["extraction_status"];
+  extraction_error: string | null;
+  updated_at: string | null;
+  created_at: string | null;
 }
 
 export interface CoverLetter {

@@ -14,6 +14,13 @@ class TestPromptLoader:
         prompt = load_prompt("matching_v1")
         assert prompt.version == "matching_v1"
 
+    def test_v2_requires_source_quotes_and_structured_requirements(self):
+        for version in ("matching_v2", "matching_v2_ollama"):
+            prompt = load_prompt(version)
+            assert '"jd_analysis"' in prompt.system_prompt
+            assert '"cv_evidence"' in prompt.system_prompt
+            assert "nguyên văn" in prompt.system_prompt
+
     def test_system_prompt_has_role_and_output_format(self):
         system = load_prompt("matching_v1").system_prompt
         assert "technical recruiter" in system

@@ -6,6 +6,7 @@ import {
   type UpdatableApplicationStatus,
   updateApplicationStatus,
 } from "@/lib/api";
+import Icon from "./Icon";
 
 export default function StatusButtons({
   jobId,
@@ -60,7 +61,14 @@ export default function StatusButtons({
               : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
-          {updating ? "Updating…" : next === "approved" ? "Approve" : "Reject"}
+          {updating ? (
+            "Updating…"
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name={next === "approved" ? "check" : "close"} className="h-3.5 w-3.5" />
+              {next === "approved" ? "Approve" : "Reject"}
+            </span>
+          )}
         </button>
       ))}
       {error && <span role="alert" className="w-full text-right text-[11px] text-red-600">{error}</span>}

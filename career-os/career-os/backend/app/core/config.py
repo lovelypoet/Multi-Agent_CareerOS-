@@ -45,9 +45,6 @@ class Settings(BaseSettings):
 
     # --- App ----------------------------------------------------------------
     cors_origins: str = "http://localhost:3000"
-    # Phase 0: chỉ 1 resume duy nhất, luôn nằm ở id cố định này.
-    resume_singleton_id: int = 1
-
     # --- Phase 1: fetch job tự động ------------------------------------------
     # Giờ chạy hàng ngày (giờ server), mặc định 8:00 sáng, override qua env nếu cần.
     fetch_jobs_hour: int = 8

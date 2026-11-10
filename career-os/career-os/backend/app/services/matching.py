@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agent_contract import AgentContext, AgentExecutionError, AgentUnavailableError
 from app.core.agent_registry import get_agent
-from app.core.config import get_settings
 from app.integrations.anthropic import AnthropicConfigError
 from app.models.job import Job
 from app.models.match_result import MatchResult
@@ -60,8 +59,7 @@ class MatchingService:
         self.session = session
 
     async def match_job(self, description: str) -> MatchingOutcome:
-        settings = get_settings()
-        resume = await ResumeRepository(self.session).get_singleton(settings.resume_singleton_id)
+        resume = await ResumeRepository(self.session).get_active()
         if resume is None:
             raise ResumeRequiredError("A resume must be saved before matching a job.")
 
@@ -110,10 +108,9 @@ class MatchingService:
             logger.info("Matching models disagreed for job %s; manual review is required.", job.id)
             return MatchingOutcome(job=job, match=None)
 
+        output = MatchOutput.model_validate(result.output)
         match = await MatchResultRepository(self.session).create(
-            job_id=job.id,
-            resume_id=resume.id,
-            output=MatchOutput.model_validate(result.output),
+            job_id=job.id, resume_id=resume.id, output=output
         )
         await self.session.commit()
         await self.session.refresh(match)

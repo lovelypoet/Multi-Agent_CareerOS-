@@ -9,15 +9,23 @@ import json
 
 import pytest
 from fpdf import FPDF
+from sqlalchemy import func, select
 
 from app.agents.cv_extraction_agent import CVExtractionAgent
 from app.core.agent_contract import AgentContext
+from app.core.db import SessionLocal
 from app.integrations.anthropic import AnthropicCallError
 from app.integrations.ollama_client import OllamaClient
+from app.models import CVExtractedKeywords, Resume
 from app.schemas.cv_extraction import CVExtractionOutput
 from tests.conftest import FakeAnthropicClient
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+async def _count(model) -> int:
+    async with SessionLocal() as session:
+        return (await session.execute(select(func.count()).select_from(model))).scalar_one()
 
 
 def _cv_json(*, domains: list[str], key_skills: list[str]) -> str:
@@ -151,12 +159,25 @@ async def test_save_resume_triggers_extraction_and_saves_keywords(client, fake_c
 
     assert response.status_code == 200
     assert len(fake_client.calls) == 1
+    assert response.json()["extraction_status"] == "succeeded"
 
     keywords_response = await client.get("/api/resume/extracted-keywords")
     assert keywords_response.status_code == 200
     body = keywords_response.json()
     assert body["domains"] == ["computer vision"]
     assert body["key_skills"] == ["PyTorch", "Docker"]
+    assert body["resume_id"] == response.json()["id"]
+    assert body["version_number"] == 1
+
+    from app.models import AgentRun
+
+    async with SessionLocal() as session:
+        run = (
+            await session.execute(
+                select(AgentRun).where(AgentRun.agent_name == "cv_extraction_agent")
+            )
+        ).scalar_one()
+    assert run.resume_id == response.json()["id"]
 
 
 async def test_upload_pdf_also_triggers_extraction(client, fake_cv_extraction_agent):
@@ -175,7 +196,7 @@ async def test_upload_pdf_also_triggers_extraction(client, fake_cv_extraction_ag
     assert keywords["key_skills"] == ["Kubernetes"]
 
 
-async def test_extraction_failure_does_not_break_resume_save_or_wipe_old_keywords(
+async def test_extraction_failure_does_not_break_save_or_reuse_previous_keywords(
     client, fake_cv_extraction_agent
 ):
     """Test QUAN TRỌNG NHẤT của file này — lỗi trích xuất KHÔNG được làm hỏng việc lưu resume,
@@ -194,24 +215,25 @@ async def test_extraction_failure_does_not_break_resume_save_or_wipe_old_keyword
     assert second.status_code == 200  # PHẢI vẫn thành công
     assert second.json()["content"] == "CV cap nhat"  # resume vẫn được lưu bình thường
 
-    still_old_keywords = (await client.get("/api/resume/extracted-keywords")).json()
-    assert still_old_keywords["key_skills"] == ["Airflow"]  # KHÔNG bị xoá
+    current_keywords = (await client.get("/api/resume/extracted-keywords")).json()
+    assert current_keywords["extraction_status"] == "failed"
+    assert current_keywords["key_skills"] == []
+
+    async with SessionLocal() as session:
+        versions = (await session.execute(select(Resume).order_by(Resume.version_number))).scalars().all()
+        old_keywords = await session.get(CVExtractedKeywords, versions[0].id)
+    assert len(versions) == 2
+    assert old_keywords is not None
+    assert old_keywords.key_skills == ["Airflow"]
 
 
 async def test_get_extracted_keywords_404_before_any_save(client):
     response = await client.get("/api/resume/extracted-keywords")
     assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "CV_KEYWORDS_NOT_FOUND"
+    assert response.json()["detail"]["code"] == "RESUME_NOT_FOUND"
 
 
-async def test_reextraction_overwrites_not_duplicates(client, fake_cv_extraction_agent):
-    """Singleton, không phải append-only — lưu lại resume nhiều lần chỉ giữ đúng 1 bản trích
-    xuất mới nhất."""
-    from sqlalchemy import func, select
-
-    from app.core.db import SessionLocal
-    from app.models import CVExtractedKeywords
-
+async def test_each_resume_version_keeps_its_own_extraction(client, fake_cv_extraction_agent):
     fake_cv_extraction_agent(responses=[_cv_json(domains=["a"], key_skills=["x"])])
     await client.post("/api/resume", json={"content": "Ban 1"})
 
@@ -222,11 +244,12 @@ async def test_reextraction_overwrites_not_duplicates(client, fake_cv_extraction
         count = (
             await session.execute(select(func.count()).select_from(CVExtractedKeywords))
         ).scalar_one()
-    assert count == 1
+    assert count == 2
 
     keywords = (await client.get("/api/resume/extracted-keywords")).json()
     assert keywords["domains"] == ["b"]
     assert keywords["key_skills"] == ["y"]
+    assert keywords["version_number"] == 2
 
 
 # --- Embedding cho resume (Phase 3 việc #4 mục 3) ------------------------------------------
@@ -248,7 +271,9 @@ async def _resume_embedding():
     from app.models import Resume
 
     async with SessionLocal() as session:
-        resume = (await session.execute(select(Resume))).scalar_one()
+        resume = (
+            await session.execute(select(Resume).where(Resume.is_active.is_(True)))
+        ).scalar_one()
         return resume.embedding
 
 
@@ -269,7 +294,7 @@ async def test_extraction_success_with_data_triggers_embedding_with_joined_keywo
     assert list(await _resume_embedding()) == pytest.approx(_vec(0.25))
 
 
-async def test_cv_extraction_failure_skips_embedding_and_keeps_old_one(
+async def test_cv_extraction_failure_skips_embedding_and_does_not_reuse_old_one(
     client, fake_cv_extraction_agent, fake_embedding_client
 ):
     """CV extraction THẤT BẠI -> `embed_text()` KHÔNG được gọi, resume vẫn lưu thành công,
@@ -286,11 +311,12 @@ async def test_cv_extraction_failure_skips_embedding_and_keeps_old_one(
 
     assert second.status_code == 200
     assert calls == ["data engineering, Airflow"]  # KHÔNG có lời gọi mới nào ở lần lưu thứ 2
+    assert old_embedding is not None
     new_embedding = await _resume_embedding()
-    assert list(new_embedding) == pytest.approx(list(old_embedding))  # giữ nguyên embedding cũ
+    assert new_embedding is None
 
 
-async def test_cv_extraction_success_but_empty_also_skips_embedding(
+async def test_cv_extraction_success_but_empty_does_not_reuse_old_embedding(
     client, fake_cv_extraction_agent, fake_embedding_client
 ):
     """Case dễ bị bỏ sót: CV extraction THÀNH CÔNG nhưng `domains`/`key_skills` đều rỗng (không
@@ -309,4 +335,33 @@ async def test_cv_extraction_success_but_empty_also_skips_embedding(
     assert second.status_code == 200
     assert calls == ["backend, Kubernetes"]  # không có lời gọi mới nào
     new_embedding = await _resume_embedding()
-    assert list(new_embedding) == pytest.approx(list(old_embedding))
+    assert new_embedding is None
+    current_keywords = (await client.get("/api/resume/extracted-keywords")).json()
+    assert current_keywords["extraction_status"] == "empty"
+    assert current_keywords["key_skills"] == []
+
+
+async def test_same_resume_upload_reuses_active_version(client, fake_cv_extraction_agent):
+    fake_client = fake_cv_extraction_agent(responses=[_cv_json(domains=["data"], key_skills=["SQL"])])
+    first = await client.post("/api/resume", json={"content": "Same resume content"})
+    second = await client.post("/api/resume", json={"content": "Same resume content"})
+
+    assert first.status_code == second.status_code == 200
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["version_number"] == second.json()["version_number"] == 1
+    assert len(fake_client.calls) == 1
+    assert await _count(Resume) == 1
+
+
+async def test_resume_content_hash_and_version_are_immutable(client):
+    from sqlalchemy import update
+    from sqlalchemy.exc import DBAPIError
+
+    response = await client.post("/api/resume", json={"content": "Immutable version"})
+    resume_id = response.json()["id"]
+
+    async with SessionLocal() as session:
+        with pytest.raises(DBAPIError):
+            await session.execute(
+                update(Resume).where(Resume.id == resume_id).values(content="changed")
+            )

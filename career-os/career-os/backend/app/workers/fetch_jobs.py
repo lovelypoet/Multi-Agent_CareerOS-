@@ -32,11 +32,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agent_contract import AgentContext, AgentExecutionError, AgentUnavailableError
 from app.core.agent_registry import get_agent
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.db import SessionLocal
 from app.integrations.anthropic import AnthropicConfigError
 from app.integrations.embedding_client import EmbeddingCallError, cosine_similarity, embed_text
-from app.integrations.itviec import CATEGORY_URLS, ItviecFetchError, JobListingMeta, fetch_detail, fetch_listing
+from app.integrations.itviec import CATEGORY_URLS, ItviecFetchError, fetch_detail, fetch_listing
+from app.integrations.job_listing import JobListing
+from app.integrations.remoteok import RemoteOKFetchError, fetch_jobs as fetch_remoteok_jobs
 from app.models.job import Job
 from app.repositories.agent_run_repository import AgentRunRepository
 from app.repositories.cv_extraction_repository import CVExtractionRepository
@@ -53,6 +55,7 @@ logger = logging.getLogger(__name__)
 MATCHING_AGENT = "matching_agent"
 SCAM_DETECTION_AGENT = "scam_detection_agent"
 SOURCE_ITVIEC = "itviec"
+SOURCE_REMOTEOK = "remoteok"
 
 
 async def _run_scam_detection(*, job: Job, run_repo: AgentRunRepository, session: AsyncSession) -> None:
@@ -157,7 +160,8 @@ class _CategoryCounts:
 
 async def _process_job(
     *,
-    listing: JobListingMeta,
+    listing: JobListing,
+    source: str,
     resume_id: int,
     resume_content: str,
     job_repo: JobRepository,
@@ -167,10 +171,15 @@ async def _process_job(
     counts: _CategoryCounts,
     job_embedding: list[float] | None,
 ) -> None:
-    try:
-        description = await fetch_detail(listing.url)
-    except ItviecFetchError as exc:
-        logger.warning("[fetch_jobs] fetch detail lỗi, bỏ qua job %s: %s", listing.url, exc)
+    description = listing.description
+    if description is None:
+        try:
+            description = await fetch_detail(listing.url)
+        except ItviecFetchError as exc:
+            logger.warning("[fetch_jobs] fetch detail lỗi, bỏ qua job %s: %s", listing.url, exc)
+            return
+    elif not description.strip():
+        logger.warning("[fetch_jobs] Mô tả rỗng, bỏ qua job %s.", listing.url)
         return
 
     if not passes_level_filter(listing.title, description):
@@ -182,7 +191,7 @@ async def _process_job(
         title=listing.title,
         company=listing.company,
         url=listing.url,
-        source=SOURCE_ITVIEC,
+        source=source,
         embedding=job_embedding,
     )
     await session.commit()
@@ -223,9 +232,73 @@ async def _process_job(
         counts.needs_review += 1
         return
 
-    await match_repo.create(job_id=job.id, resume_id=resume_id, output=MatchOutput.model_validate(result.output))
+    output = MatchOutput.model_validate(result.output)
+    await match_repo.create(job_id=job.id, resume_id=resume_id, output=output)
     await session.commit()
     counts.analyzed_success += 1
+
+
+async def _process_listings(
+    *,
+    listings: list[JobListing],
+    source: str,
+    source_name: str,
+    resume_id: int,
+    resume_content: str,
+    resume_embedding: list[float] | None,
+    effective_keywords: list[str],
+    job_repo: JobRepository,
+    match_repo: MatchResultRepository,
+    run_repo: AgentRunRepository,
+    session: AsyncSession,
+    settings: Settings,
+    seen_this_run: set[str],
+) -> None:
+    counts = _CategoryCounts(source_name)
+    counts.fetched = len(listings)
+
+    for listing in listings:
+        keyword_match = matches_relevant_keyword(listing.title, listing.skill_tags, effective_keywords)
+        job_embedding: list[float] | None = None
+        passes_filter = keyword_match
+        if resume_embedding is not None:
+            job_text = " ".join([listing.title, *listing.skill_tags])
+            try:
+                job_embedding = await embed_text(job_text)
+            except EmbeddingCallError as exc:
+                logger.warning(
+                    "[fetch_jobs] Không tạo được embedding cho job '%s', bỏ qua điều "
+                    "kiện embedding cho job này: %s",
+                    listing.title,
+                    exc,
+                )
+            if job_embedding is not None and not passes_filter:
+                similarity = cosine_similarity(job_embedding, resume_embedding)
+                passes_filter = similarity >= settings.embedding_similarity_threshold
+
+        if not passes_filter:
+            continue
+        counts.keyword_passed += 1
+
+        if listing.url in seen_this_run or await job_repo.exists_by_url(listing.url):
+            continue
+        seen_this_run.add(listing.url)
+        counts.new_by_url += 1
+
+        await _process_job(
+            listing=listing,
+            source=source,
+            resume_id=resume_id,
+            resume_content=resume_content,
+            job_repo=job_repo,
+            match_repo=match_repo,
+            run_repo=run_repo,
+            session=session,
+            counts=counts,
+            job_embedding=job_embedding,
+        )
+
+    counts.log_summary()
 
 
 async def run_fetch_jobs() -> None:
@@ -233,41 +306,38 @@ async def run_fetch_jobs() -> None:
     settings = get_settings()
 
     async with SessionLocal() as session:
-        resume = await ResumeRepository(session).get_singleton(settings.resume_singleton_id)
+        resume = await ResumeRepository(session).get_active()
         if resume is None:
             logger.warning(
                 "[fetch_jobs] Chưa có resume nào được lưu — bỏ qua lần fetch này (không có gì để chấm điểm)."
             )
             return
 
+        # Snapshot the active resume once. This ID/content/vector stays fixed for the full run,
+        # even if a newer version is activated while network or AI work is in progress.
+        resume_id = resume.id
+        resume_content = resume.content
+        resume_embedding = (
+            resume.embedding if resume.embedding_status == "succeeded" else None
+        )
         job_repo = JobRepository(session)
         match_repo = MatchResultRepository(session)
         run_repo = AgentRunRepository(session)
 
-        # Từ khóa tự rút từ CV (Phase 3 việc #4) BỔ SUNG cho RELEVANT_KEYWORDS tĩnh, KHÔNG thay
-        # thế — người dùng vẫn có quyền tự thêm từ khóa họ biết là quan trọng mà CV không nhất
-        # thiết thể hiện rõ (vd mong muốn chuyển hướng nghề nghiệp). Chưa có
-        # cv_extracted_keywords nào (chưa từng lưu CV, hoặc lần trích xuất đầu tiên chưa chạy
-        # xong/lỗi) -> extracted = None, chỉ dùng RELEVANT_KEYWORDS tĩnh, không lỗi gì — hành vi
-        # y hệt trước khi có tính năng này.
-        extracted = await CVExtractionRepository(session).get_singleton(resume.id)
+        extracted = None
+        if resume.extraction_status == "succeeded":
+            extracted = await CVExtractionRepository(session).get_for_resume(resume_id)
+            if extracted is None:
+                raise RuntimeError(
+                    f"Resume {resume_id} is marked extracted but has no keyword record."
+                )
         dynamic_keywords = (extracted.domains + extracted.key_skills) if extracted else []
         effective_keywords = build_effective_keywords(dynamic_keywords)
 
-        # Phase 3 việc #4 mục 4 — lấy `resumes.embedding` MỘT LẦN đầu lần chạy, KHÔNG query lại
-        # cho từng job. Có thể là NULL (chưa từng lưu resume, CV extraction lỗi, hoặc trích ra
-        # rỗng — xem `api/resume.py::_run_cv_extraction`) — nếu NULL thì bỏ hẳn điều kiện
-        # embedding cho TOÀN BỘ lần chạy này, không gọi `embed_text()` cho từng job làm gì nữa
-        # (không có gì để so sánh), chỉ dùng 2 điều kiện từ khóa như hành vi gốc — không crash,
-        # không log ồn ào, đây là trạng thái bình thường có thể xảy ra.
-        resume_embedding = resume.embedding
-
-        # Dedup trong-lần-chạy: 1 job có thể xuất hiện ở nhiều category listing cùng lúc
-        # (vd. vừa khớp "Data Engineer" vừa khớp "AI / Machine Learning Engineer").
+        # Dedup across categories and sources within this run.
         seen_this_run: set[str] = set()
 
         for category_name, category_url in CATEGORY_URLS.items():
-            counts = _CategoryCounts(category_name)
             try:
                 listings = await fetch_listing(category_url)
             except ItviecFetchError as exc:
@@ -279,52 +349,39 @@ async def run_fetch_jobs() -> None:
                 )
                 continue
 
-            counts.fetched = len(listings)
+            await _process_listings(
+                listings=listings,
+                source=SOURCE_ITVIEC,
+                source_name=category_name,
+                resume_id=resume_id,
+                resume_content=resume_content,
+                resume_embedding=resume_embedding,
+                effective_keywords=effective_keywords,
+                job_repo=job_repo,
+                match_repo=match_repo,
+                run_repo=run_repo,
+                session=session,
+                settings=settings,
+                seen_this_run=seen_this_run,
+            )
 
-            for listing in listings:
-                keyword_match = matches_relevant_keyword(listing.title, listing.skill_tags, effective_keywords)
-
-                # Bước lọc rẻ: title + skill tags (KHÔNG phải full description — dùng embedding
-                # để lọc TRƯỚC khi fetch detail mới có ý nghĩa, xem docstring module). Tính
-                # embedding của job (nếu resume có embedding để so sánh) DÙ keyword đã khớp hay
-                # chưa — job lọt qua bước này (bất kể nhánh nào) đều cần `job_embedding` để lưu
-                # vào `jobs.embedding` lúc insert, phục vụ tìm kiếm theo ý nghĩa sau này.
-                job_embedding: list[float] | None = None
-                passes_filter = keyword_match
-                if resume_embedding is not None:
-                    job_text = " ".join([listing.title, *listing.skill_tags])
-                    try:
-                        job_embedding = await embed_text(job_text)
-                    except EmbeddingCallError as exc:
-                        logger.warning(
-                            "[fetch_jobs] Không tạo được embedding cho job '%s', bỏ qua điều "
-                            "kiện embedding cho job này: %s",
-                            listing.title,
-                            exc,
-                        )
-                    if job_embedding is not None and not passes_filter:
-                        similarity = cosine_similarity(job_embedding, resume_embedding)
-                        passes_filter = similarity >= settings.embedding_similarity_threshold
-
-                if not passes_filter:
-                    continue
-                counts.keyword_passed += 1
-
-                if listing.url in seen_this_run or await job_repo.exists_by_url(listing.url):
-                    continue
-                seen_this_run.add(listing.url)
-                counts.new_by_url += 1
-
-                await _process_job(
-                    listing=listing,
-                    resume_id=resume.id,
-                    resume_content=resume.content,
-                    job_repo=job_repo,
-                    match_repo=match_repo,
-                    run_repo=run_repo,
-                    session=session,
-                    counts=counts,
-                    job_embedding=job_embedding,
-                )
-
-            counts.log_summary()
+        try:
+            remoteok_listings = await fetch_remoteok_jobs()
+        except RemoteOKFetchError as exc:
+            logger.error("[fetch_jobs] Không fetch được Remote OK, bỏ qua nguồn này: %s", exc)
+        else:
+            await _process_listings(
+                listings=remoteok_listings,
+                source=SOURCE_REMOTEOK,
+                source_name="Remote OK",
+                resume_id=resume_id,
+                resume_content=resume_content,
+                resume_embedding=resume_embedding,
+                effective_keywords=effective_keywords,
+                job_repo=job_repo,
+                match_repo=match_repo,
+                run_repo=run_repo,
+                session=session,
+                settings=settings,
+                seen_this_run=seen_this_run,
+            )

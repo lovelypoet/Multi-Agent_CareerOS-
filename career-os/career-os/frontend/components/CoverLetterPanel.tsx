@@ -8,6 +8,7 @@ import {
   ErrorCode,
   getCoverLetter,
 } from "@/lib/api";
+import Icon from "./Icon";
 import PendingDots from "./PendingDots";
 
 /** CHỈ được render khi `application_status === "approved"` (kiểm tra ở component cha
@@ -89,9 +90,15 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
           {generating ? (
             <PendingDots label="Generating" />
           ) : coverLetter ? (
-            "Regenerate"
+            <span className="inline-flex items-center gap-2">
+              <Icon name="refresh" />
+              Regenerate
+            </span>
           ) : (
-            "Generate cover letter"
+            <span className="inline-flex items-center gap-2">
+              <Icon name="analyze" />
+              Generate cover letter
+            </span>
           )}
         </button>
         {coverLetter && (
@@ -100,7 +107,10 @@ export default function CoverLetterPanel({ jobId }: { jobId: number }) {
             onClick={() => void handleCopy()}
             className="rounded-control border border-line bg-surface px-4 py-2 text-caption font-semibold text-content transition duration-150 ease-out-soft hover:bg-surface-muted hover:scale-[1.02]"
           >
-            {copied ? "Copied" : "Copy"}
+            <span className="inline-flex items-center gap-2">
+              <Icon name={copied ? "check" : "copy"} />
+              {copied ? "Copied" : "Copy"}
+            </span>
           </button>
         )}
       </div>

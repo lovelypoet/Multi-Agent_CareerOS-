@@ -14,7 +14,7 @@ from app.schemas.scam_detection import ScamAssessmentRead
 # Giới hạn mềm để tránh gửi nhầm cả trang HTML vào API và đốt token vô ích.
 MAX_DESCRIPTION_CHARS = 60_000
 
-JobSource = Literal["manual", "itviec"]
+JobSource = Literal["manual", "itviec", "remoteok"]
 
 # Suy ra từ dữ liệu (jobs + match_results + agent_runs), KHÔNG lưu thành cột riêng — xem
 # `JobRepository.list_with_latest_match_and_status` để biết thứ tự ưu tiên xác định giá trị này.

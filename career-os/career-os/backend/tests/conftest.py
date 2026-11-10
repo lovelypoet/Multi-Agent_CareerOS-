@@ -60,6 +60,33 @@ async def _create_schema():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            text(
+                """
+                CREATE OR REPLACE FUNCTION prevent_resume_version_content_mutation()
+                RETURNS trigger AS $$
+                BEGIN
+                    IF NEW.content IS DISTINCT FROM OLD.content
+                       OR NEW.content_hash IS DISTINCT FROM OLD.content_hash
+                       OR NEW.version_number IS DISTINCT FROM OLD.version_number THEN
+                        RAISE EXCEPTION
+                            'resume version content, hash, and version are immutable';
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TRIGGER trg_resume_version_content_immutable
+                BEFORE UPDATE ON resumes
+                FOR EACH ROW EXECUTE FUNCTION prevent_resume_version_content_mutation();
+                """
+            )
+        )
     yield
     await engine.dispose()
 
@@ -244,7 +271,7 @@ def _cv_extraction_agent_slot(monkeypatch):
     from app.agents.cv_extraction_agent import CVExtractionAgent
 
     slot = {"agent": CVExtractionAgent(client=FakeAnthropicClient())}
-    monkeypatch.setattr("app.api.resume.get_agent", lambda name: slot["agent"])
+    monkeypatch.setattr("app.services.resume_processing.get_agent", lambda name: slot["agent"])
     return slot
 
 
@@ -291,7 +318,7 @@ def _embedding_slot(monkeypatch):
         slot["calls"].append(text)
         return slot["fn"](text)
 
-    monkeypatch.setattr("app.api.resume.embed_text", _dispatch)
+    monkeypatch.setattr("app.services.resume_processing.embed_text", _dispatch)
     monkeypatch.setattr("app.api.jobs.embed_text", _dispatch)
     monkeypatch.setattr("app.workers.fetch_jobs.embed_text", _dispatch)
     return slot

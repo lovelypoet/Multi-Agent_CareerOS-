@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.errors import ErrorCode, api_error
 from app.core.agent_contract import AgentContext, AgentExecutionError, AgentUnavailableError
 from app.core.agent_registry import get_agent
-from app.core.config import get_settings
 from app.core.db import get_session
 from app.integrations.anthropic import AnthropicConfigError
 from app.models.match_result import MatchResult
@@ -69,8 +68,7 @@ async def create_cover_letter(
             "Chỉ tạo được cover letter cho job đã approve. Approve job này trước.",
         )
 
-    settings = get_settings()
-    resume = await ResumeRepository(session).get_singleton(settings.resume_singleton_id)
+    resume = await ResumeRepository(session).get_active()
     if resume is None:
         raise api_error(
             status.HTTP_400_BAD_REQUEST,
@@ -78,7 +76,7 @@ async def create_cover_letter(
             "Chưa có resume nào được lưu. Lưu resume trước khi tạo cover letter.",
         )
 
-    match = await MatchResultRepository(session).get_latest_for_job(job_id)
+    match = await MatchResultRepository(session).get_latest_for_job(job_id, resume_id=resume.id)
     match_context = _build_match_context(match)
 
     try:

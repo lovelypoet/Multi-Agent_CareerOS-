@@ -1,4 +1,5 @@
 import type { MatchResult } from "@/lib/api";
+import RequirementEvidence from "./RequirementEvidence";
 import ScoreCounter from "./ScoreCounter";
 import VerdictBadge from "./VerdictBadge";
 
@@ -54,6 +55,20 @@ export default function MatchCard({ match }: { match: MatchResult }) {
       </header>
 
       <p className="mt-6 border-t border-line pt-6 text-body-lg">{match.reasoning}</p>
+
+      {match.analysis_basis === "legacy" && (
+        <p className="mt-4 rounded-card border border-amber-200 bg-amber-50 p-4 text-caption text-amber-900">
+          This saved result has no source-verified JD requirements. New analyses use the current
+          prompt to show requirement-by-requirement CV evidence.
+        </p>
+      )}
+
+      {match.jd_analysis && match.analysis_basis === "evidence_based" && (
+        <RequirementEvidence
+          analysis={match.jd_analysis}
+          assessments={match.requirement_assessments}
+        />
+      )}
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <RequirementList

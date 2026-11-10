@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
 
 import httpx
 from bs4 import BeautifulSoup
+
+from app.integrations.job_listing import JobListing
 
 logger = logging.getLogger(__name__)
 
@@ -47,16 +48,8 @@ class ItviecFetchError(RuntimeError):
     """Gọi HTTP tới ITviec thất bại (mạng, timeout, status lỗi) hoặc parse ra thiếu dữ liệu."""
 
 
-@dataclass(slots=True)
-class JobListingMeta:
-    """Metadata rẻ lấy được từ listing page — không có level_text (xem prompt Phase 1 mục 3:
-    ITviec không hiển thị field level riêng trên listing, level phải suy từ title + detail).
-    """
-
-    title: str
-    company: str | None
-    url: str
-    skill_tags: list[str] = field(default_factory=list)
+# Kept as an alias for existing callers; listings are normalized across sources.
+JobListingMeta = JobListing
 
 
 def _clean_job_url(href: str) -> str:
@@ -71,12 +64,12 @@ def _clean_job_url(href: str) -> str:
     return clean
 
 
-def parse_listing_html(html: str) -> list[JobListingMeta]:
+def parse_listing_html(html: str) -> list[JobListing]:
     """Parse 1 trang listing (`.job-card` × N) thành metadata. Hàm thuần, không gọi mạng —
     để test được offline bằng fixture.
     """
     soup = BeautifulSoup(html, "html.parser")
-    jobs: list[JobListingMeta] = []
+    jobs: list[JobListing] = []
 
     for card in soup.select(".job-card"):
         title_link = card.select_one("h3 a")
@@ -104,7 +97,7 @@ def parse_listing_html(html: str) -> list[JobListingMeta]:
 
         skill_tags = [tag.get_text(strip=True) for tag in card.select(".itag") if tag.get_text(strip=True)]
 
-        jobs.append(JobListingMeta(title=title, company=company, url=url, skill_tags=skill_tags))
+        jobs.append(JobListing(title=title, company=company, url=url, skill_tags=skill_tags))
 
     return jobs
 

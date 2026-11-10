@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ApiError, searchJobs, type Job } from "@/lib/api";
+import Icon from "./Icon";
 import PendingDots from "./PendingDots";
 import SourceBadge from "./SourceBadge";
 
@@ -88,7 +89,14 @@ export default function JobSearch() {
           disabled={!canSearch}
           className="rounded-control bg-accent px-5 py-2.5 font-display text-body font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 disabled:hover:scale-100"
         >
-          {searching ? <PendingDots label="Searching" /> : "Search"}
+          {searching ? (
+            <PendingDots label="Searching" />
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <Icon name="search" />
+              Search
+            </span>
+          )}
         </button>
       </div>
 
@@ -123,7 +131,8 @@ export default function JobSearch() {
                           rel="noopener noreferrer"
                           className="mt-1 inline-flex items-center gap-1 text-caption font-semibold text-accent hover:underline"
                         >
-                          View original posting <span aria-hidden="true">↗</span>
+                          <Icon name="external" className="h-3.5 w-3.5" />
+                          View original posting
                         </a>
                       )}
                     </div>

@@ -37,13 +37,14 @@ original posting so **you** review, edit, and click submit yourself.
 | Feature | Description |
 |---|---|
 | **Fit scoring** | Paste a job description (or let it auto-fetch daily) and an agent scores how well it matches your resume, with reasoning and specific gaps called out. |
-| **Auto-fetch** | A daily background job pulls new listings from ITviec across relevant categories, filters out irrelevant/senior-level postings before spending any AI budget on them, and scores the rest automatically. |
+| **Auto-fetch** | A daily background job pulls listings from ITviec and Remote OK, filters out irrelevant/senior-level postings before spending any AI budget on them, and scores the rest automatically. |
 | **Approve / Reject + dashboard** | Track every job you've looked at, mark it approved or rejected, and see a running summary (jobs today, approved count, average score). |
 | **Cover letter drafting** | For any job you've approved, generate a cover letter grounded in your resume and the fit analysis already done — you copy, edit, and send it yourself. |
 | **Scam detection** | An independent agent flags job postings with common scam signals (upfront fees, vague descriptions, pressure tactics). It never hides a job automatically — it just warns you. |
 | **Gmail monitoring** *(opt-in, read-only)* | Watches your inbox for application-related replies (interview invites, rejections, follow-ups) and summarizes them — it never sends or modifies anything. |
 | **Semantic search** | Search your job history in plain language ("data engineering roles for someone with Kubernetes experience") instead of exact keyword matching. |
 | **Resume-aware filtering** | A dedicated agent extracts skills/domains from your resume to automatically broaden the keyword filter used during auto-fetch, on top of the keywords you configure by hand. |
+| **Evidence-based JD matching** | Extract structured JD requirements and tech stack, quote the JD and CV for each requirement, verify quotes against source text, and calculate the score with deterministic required/preferred weights. |
 
 ## AI engineering highlights
 
@@ -51,11 +52,26 @@ The project demonstrates practical LLM application engineering: five focused age
 versioned prompts and structured Pydantic schemas; a shared client supports both Claude and local
 Ollama models; and every run records its model, prompt version, latency, token usage, output, and
 errors. The matching agent can compare two local models, return a conservative result when they
-agree, and request human review when they disagree. Resume and job text can also be embedded
+agree, and request human review when they disagree. The current matching prompt extracts JD
+requirements and evidence quotes; the server rejects quotes not found in the source documents and
+checks requirement-term overlap before accepting CV evidence, then recomputes the score using a
+fixed weighted rubric. These checks improve auditability but do not prove semantic entailment;
+the user should review each cited excerpt. Resume and job text can also be embedded
 locally for semantic search with `pgvector`.
 
 The application is built around human review. It explains match scores, surfaces scam warnings,
 keeps failed analyses retryable, and never submits applications or sends email automatically.
+
+### Retrieval experiment
+
+The matching path includes an isolated hybrid-retrieval experiment that combines local embedding
+similarity with BM25 term relevance and an explainable reranking score. It is not enabled in the
+production matching service: the current synthetic benchmark has not shown a reliable verdict
+accuracy improvement, and real-profile retrieval needs reviewed evidence labels. Run
+`python -m app.scripts.evaluate_resume_retrieval` from `backend/` to compare dense-only and hybrid
+retrieval on the hand-labeled retrieval set. Run
+`python -m app.scripts.evaluate_matching_rag` from `backend/` to compare full-resume matching with
+retrieved-context matching using the configured local model.
 
 ## Design principles
 
@@ -93,7 +109,7 @@ flowchart TD
 
     Services --> Registry[Agent registry]
     Registry --> Agents[AI agents<br/>matching, scam, CV, email, cover letter]
-    Agents --> Integrations[Integrations<br/>Claude / Ollama / Gmail / ITviec]
+    Agents --> Integrations[Integrations<br/>Claude / Ollama / Gmail / ITviec / Remote OK]
     Integrations --> Providers[External services or local models]
     Providers --> Integrations
     Agents --> Services
@@ -110,7 +126,8 @@ flowchart TD
 ### End-to-end flow
 
 The user saves a resume, then discovers opportunities either by pasting a job description or
-through scheduled ITviec collection. For a manually submitted job, the FastAPI route delegates to
+through scheduled ITviec and Remote OK collection. Remote OK listings use its public JSON API,
+show the source name, and link back to the original posting. For a manually submitted job, the FastAPI route delegates to
 `MatchingService`, which checks for a saved resume, persists the job before calling AI, and runs
 matching and scam assessment as independent agent tasks through the registry. Agent-run records
 and successful results are stored in PostgreSQL; each match points to the resume record used.
@@ -141,7 +158,7 @@ career-os/
 │   │   ├── models/          SQLAlchemy models (single source of truth for the schema)
 │   │   ├── repositories/    all SQL lives here, never inline in API handlers
 │   │   ├── schemas/         Pydantic contracts shared between agents and the API layer
-│   │   ├── integrations/    one file per external system (Claude, Ollama, ITviec, Gmail,
+│   │   ├── integrations/    one file per external system (Claude, Ollama, ITviec, Remote OK, Gmail,
 │   │   │                    PDF parsing, local embeddings) — nothing else talks to them
 │   │   │                    directly
 │   │   ├── workers/         job/email task handlers
@@ -211,10 +228,10 @@ used anywhere in the project.
 
 ### Evaluating the matching agent
 
-The backend includes a small, balanced, hand-labeled benchmark for the matching agent:
-[`backend/evals/matching.json`](backend/evals/matching.json). It has 12 resume/job pairs, with
-three expected examples for each verdict. Run it from `backend/` with the same provider and model
-configuration you use for the app:
+The backend includes a balanced, hand-authored benchmark for the matching agent:
+[`backend/evals/matching.json`](backend/evals/matching.json). It has 24 synthetic resume/job
+pairs, with six expected examples for each verdict. Run it from `backend/` with the same provider
+and model configuration you use for the app:
 
 ```bash
 python -m app.scripts.evaluate_matching
@@ -227,9 +244,8 @@ failed, or review-required case. Each evaluation makes real model calls (two per
 `ollama_ensemble` mode), so it may incur API cost or use local-model resources. It does not need
 the app's database.
 
-The expected labels are human annotations based on the rubric in
-[`matching_v1.md`](backend/app/prompts/matching_v1.md), so inspect and revise the cases as the
-rubric changes. Treat results as an initial, small benchmark—not a production-quality guarantee—
+The expected labels are scenario-based annotations, not independently adjudicated hiring
+decisions. Treat results as a development benchmark—not a production-quality guarantee—
 and record the provider, model, prompt version, and report when comparing runs. Do not put an unrun
 or fabricated score on a CV.
 
@@ -252,7 +268,7 @@ Ollama service/model when using a local provider, and takes longer than the stat
 - **AI:** Anthropic Claude, Ollama, prompt engineering, structured outputs, multi-agent workflows
 - **Search:** PostgreSQL, `pgvector`, local embeddings, semantic search
 - **Frontend:** Next.js, React, TypeScript, Tailwind CSS
-- **Integrations:** Gmail API, ITviec scraping, PDF resume parsing
+- **Integrations:** Gmail API, ITviec collection, Remote OK public API, PDF resume parsing
 - **Operations and testing:** Docker Compose, APScheduler, Pytest, async integration tests
 
 ## Getting started

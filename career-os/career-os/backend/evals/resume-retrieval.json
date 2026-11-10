@@ -1,0 +1,122 @@
+[
+  {
+    "case_id": "backend-fastapi",
+    "resume_text": "Built Python and FastAPI services for customer-facing APIs. Coordinated sprint planning with product and design teams.",
+    "query": "Python FastAPI backend API development",
+    "expected_evidence": ["Built Python and FastAPI services for customer-facing APIs."]
+  },
+  {
+    "case_id": "cloud-negative",
+    "resume_text": "Designed high-availability services and monitored production incidents. No AWS deployment experience is listed.",
+    "query": "AWS cloud deployment experience",
+    "expected_evidence": ["No AWS deployment experience is listed."]
+  },
+  {
+    "case_id": "typescript-negative",
+    "resume_text": "Built React applications with JavaScript and CSS. No TypeScript experience is listed.",
+    "query": "TypeScript frontend development",
+    "expected_evidence": ["No TypeScript experience is listed."]
+  },
+  {
+    "case_id": "vietnamese-fastapi",
+    "resume_text": "Xây dựng API bằng Python và FastAPI, lưu dữ liệu trên PostgreSQL. Phối hợp với nhóm sản phẩm để làm rõ yêu cầu.",
+    "query": "kinh nghiệm phát triển backend API bằng Python FastAPI",
+    "expected_evidence": ["Xây dựng API bằng Python và FastAPI, lưu dữ liệu trên PostgreSQL."]
+  },
+  {
+    "case_id": "ml-evaluation",
+    "resume_text": "Trained image classifiers with PyTorch and measured precision, recall, and F1 on held-out data. Prepared weekly stakeholder reports.",
+    "query": "PyTorch model evaluation precision recall F1",
+    "expected_evidence": ["Trained image classifiers with PyTorch and measured precision, recall, and F1 on held-out data."]
+  },
+  {
+    "case_id": "accessibility",
+    "resume_text": "Improved keyboard navigation and screen-reader labels across React checkout flows. Reduced API response times by adding Redis caching.",
+    "query": "web accessibility keyboard navigation screen readers",
+    "expected_evidence": ["Improved keyboard navigation and screen-reader labels across React checkout flows."]
+  },
+  {
+    "case_id": "manufacturing-aoi",
+    "resume_text": "Operated SMT and AOI inspection workflows at a Foxconn electronics production line. Built a Python dashboard for defect trends.",
+    "query": "Foxconn electronics factory SMT AOI inspection experience",
+    "expected_evidence": ["Operated SMT and AOI inspection workflows at a Foxconn electronics production line."]
+  },
+  {
+    "case_id": "rag-project",
+    "resume_text": "Implemented retrieval-augmented generation with vector search and source citations for internal support documents. Maintained Docker deployment manifests.",
+    "query": "RAG vector retrieval augmented generation with citations",
+    "expected_evidence": ["Implemented retrieval-augmented generation with vector search and source citations for internal support documents."]
+  },
+  {
+    "case_id": "sql-analytics",
+    "resume_text": "Wrote SQL joins and window functions to analyze customer retention cohorts. Presented quarterly insights to business leaders.",
+    "query": "SQL analytics cohort analysis window functions",
+    "expected_evidence": ["Wrote SQL joins and window functions to analyze customer retention cohorts."]
+  },
+  {
+    "case_id": "airflow-pipelines",
+    "resume_text": "Scheduled batch ETL workflows with Apache Airflow and added data quality checks. Created dashboards for finance users.",
+    "query": "Airflow orchestration batch ETL data pipeline",
+    "expected_evidence": ["Scheduled batch ETL workflows with Apache Airflow and added data quality checks."]
+  },
+  {
+    "case_id": "leadership-incident",
+    "resume_text": "Led incident response for distributed production services and wrote postmortems that reduced repeat outages. Developed Terraform modules for AWS.",
+    "query": "production incident management root cause postmortem",
+    "expected_evidence": ["Led incident response for distributed production services and wrote postmortems that reduced repeat outages."]
+  },
+  {
+    "case_id": "research-award",
+    "resume_text": "Received a university research award for a computer-vision project and presented the results at a student symposium. Mentored two junior developers.",
+    "query": "research award computer vision project recognition",
+    "expected_evidence": ["Received a university research award for a computer-vision project and presented the results at a student symposium."]
+  },
+  {
+    "case_id": "aws-vs-azure",
+    "resume_text": "Deployed machine-learning services to Azure and monitored cloud workloads. No AWS deployment experience is listed.",
+    "query": "AWS cloud deployment experience",
+    "expected_evidence": ["No AWS deployment experience is listed."]
+  },
+  {
+    "case_id": "react-vs-vue",
+    "resume_text": "Built Vue.js and JavaScript interfaces for a production storefront. Prototyped React components in a weekend project and has not used TypeScript.",
+    "query": "production React and TypeScript frontend experience",
+    "expected_evidence": ["Prototyped React components in a weekend project and has not used TypeScript."]
+  },
+  {
+    "case_id": "pytorch-vs-tensorflow",
+    "resume_text": "Trained image models with TensorFlow and deployed them behind a REST API. No PyTorch experience is listed.",
+    "query": "PyTorch model training experience",
+    "expected_evidence": ["No PyTorch experience is listed."]
+  },
+  {
+    "case_id": "postgres-vs-mysql",
+    "resume_text": "Designed MySQL schemas and optimized production queries. Has not used PostgreSQL.",
+    "query": "PostgreSQL database schema and query experience",
+    "expected_evidence": ["Has not used PostgreSQL."]
+  },
+  {
+    "case_id": "kubernetes-vs-docker",
+    "resume_text": "Built Docker images and deployed containers with Compose. No Kubernetes orchestration experience.",
+    "query": "Kubernetes container orchestration production experience",
+    "expected_evidence": ["No Kubernetes orchestration experience."]
+  },
+  {
+    "case_id": "airflow-vs-prefect",
+    "resume_text": "Scheduled data workflows with Prefect and wrote Python ETL jobs. Has not used Apache Airflow.",
+    "query": "Apache Airflow workflow orchestration",
+    "expected_evidence": ["Has not used Apache Airflow."]
+  },
+  {
+    "case_id": "research-award-vs-course",
+    "resume_text": "Completed an introductory computer-vision course and reproduced a tutorial notebook. Received a university research award for an original object-detection project.",
+    "query": "competitive research award for original computer vision project",
+    "expected_evidence": ["Received a university research award for an original object-detection project."]
+  },
+  {
+    "case_id": "product-prototype",
+    "resume_text": "Interviewed five users, built an LLM-powered prototype, and measured task completion before and after the change. Maintained an internal PostgreSQL reporting dashboard.",
+    "query": "AI product discovery user interviews LLM prototype experiment outcomes",
+    "expected_evidence": ["Interviewed five users, built an LLM-powered prototype, and measured task completion before and after the change."]
+  }
+]

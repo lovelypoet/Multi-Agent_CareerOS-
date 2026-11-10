@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import type { ApplicationStatus, JobWithMatch } from "@/lib/api";
 import AgentRunsDetail from "./AgentRunsDetail";
 import CoverLetterPanel from "./CoverLetterPanel";
+import Icon from "./Icon";
 import ScamAssessmentDetail from "./ScamAssessmentDetail";
 import ScamWarningBadge from "./ScamWarningBadge";
+import RequirementEvidence from "./RequirementEvidence";
 import SourceBadge from "./SourceBadge";
 import StatusButtons from "./StatusButtons";
 import VerdictBadge from "./VerdictBadge";
@@ -143,7 +145,20 @@ export default function HistoryList({
                 </div>
               </div>
 
+              {match && (
+                <p className="mt-2 text-[11px] text-muted">
+                  Matched using resume version {match.resume_version_number}
+                </p>
+              )}
+
               <p className="mt-4 text-xs leading-5 text-slate-500">{excerpt(job.description)}</p>
+
+              {match?.jd_analysis && match.analysis_basis === "evidence_based" && (
+                <RequirementEvidence
+                  analysis={match.jd_analysis}
+                  assessments={match.requirement_assessments}
+                />
+              )}
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
                 <div className="flex flex-wrap items-center gap-3">
@@ -152,9 +167,10 @@ export default function HistoryList({
                       href={job.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
                     >
-                      View job <span aria-hidden="true">↗</span>
+                      <Icon name="external" className="h-3.5 w-3.5" />
+                      View job
                     </a>
                   )}
                   {analysis_status === "needs_review" && (

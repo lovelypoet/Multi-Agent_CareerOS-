@@ -14,6 +14,7 @@ import os
 
 import pytest
 from fpdf import FPDF
+from sqlalchemy import select
 
 from app.core.db import SessionLocal
 from app.models import Resume
@@ -46,7 +47,7 @@ def _encrypted_pdf(text: str) -> bytes:
 
 async def _saved_resume_content() -> str | None:
     async with SessionLocal() as session:
-        resume = await session.get(Resume, 1)
+        resume = (await session.execute(select(Resume).where(Resume.is_active.is_(True)))).scalar_one_or_none()
         return resume.content if resume else None
 
 
@@ -68,7 +69,7 @@ async def test_valid_pdf_with_text_is_extracted_and_saved(client):
     assert await _saved_resume_content() == body["content"]
 
 
-async def test_upload_overwrites_previous_resume_same_singleton_row(client):
+async def test_upload_keeps_previous_resume_version_and_activates_new_one(client):
     await client.post("/api/resume", json={"content": "Ban dan tay ban dau"})
 
     content = _pdf_with_text("Noi dung tu PDF, phai ghi de ban dan tay. " * 3)
@@ -84,7 +85,10 @@ async def test_upload_overwrites_previous_resume_same_singleton_row(client):
         from sqlalchemy import func, select
 
         count = (await session.execute(select(func.count()).select_from(Resume))).scalar_one()
-    assert count == 1  # upsert, không tạo row thứ 2
+        resumes = (await session.execute(select(Resume).order_by(Resume.version_number))).scalars().all()
+    assert count == 2
+    assert [resume.is_active for resume in resumes] == [False, True]
+    assert resumes[0].content == "Ban dan tay ban dau"
 
 
 async def test_pdf_with_no_text_layer_is_rejected(client):

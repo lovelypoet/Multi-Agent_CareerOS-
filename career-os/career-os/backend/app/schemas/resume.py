@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -28,4 +29,12 @@ class ResumeRead(BaseModel):
 
     id: int
     content: str
+    version_number: int
+    is_active: bool
+    extraction_status: Literal["pending", "running", "succeeded", "empty", "failed", "unverified"]
+    extraction_error: str | None
+    embedding_status: Literal[
+        "pending", "running", "succeeded", "empty", "failed", "blocked", "unverified"
+    ]
+    embedding_error: str | None
     created_at: datetime

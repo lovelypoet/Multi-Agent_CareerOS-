@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, created_at_column
+from app.models.resume import Resume
 
 VERDICTS = ("strong_match", "good_match", "partial_match", "weak_match")
 
@@ -35,6 +36,10 @@ class MatchResult(Base):
     matched_requirements: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     missing_requirements: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     suggestions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    jd_analysis: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    requirement_assessments: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+    analysis_basis: Mapped[str] = mapped_column(String(20), nullable=False, default="legacy")
     created_at: Mapped[datetime] = created_at_column()
 
     job = relationship("Job", back_populates="match_results", lazy="noload")
+    resume: Mapped[Resume] = relationship(lazy="joined")

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ErrorCode } from "@/lib/api";
+import Icon from "./Icon";
 
 /**
  * Lỗi phải nói rõ chuyện gì xảy ra và làm gì tiếp theo — không đổ raw error kỹ thuật ra màn hình,
@@ -29,7 +30,10 @@ export default function ErrorNotice({
             href="/resume"
             className="rounded-control bg-accent px-4 py-2 text-caption font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02]"
           >
-            Save resume
+            <span className="inline-flex items-center gap-2">
+              <Icon name="save" />
+              Save resume
+            </span>
           </Link>
         )}
         {onRetry && !needsResume && (
@@ -38,7 +42,10 @@ export default function ErrorNotice({
             onClick={onRetry}
             className="rounded-control border border-line bg-surface px-4 py-2 text-caption font-semibold text-content transition duration-150 ease-out-soft hover:bg-surface-muted hover:scale-[1.02]"
           >
-            Try again
+            <span className="inline-flex items-center gap-2">
+              <Icon name="refresh" />
+              Try again
+            </span>
           </button>
         )}
       </div>

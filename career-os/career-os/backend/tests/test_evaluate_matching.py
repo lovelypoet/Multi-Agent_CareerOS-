@@ -80,13 +80,50 @@ def test_load_benchmark_dataset_has_balanced_labels():
     from app.scripts.evaluate_matching import DEFAULT_DATASET, VERDICTS
 
     cases = load_cases(DEFAULT_DATASET)
-    assert len(cases) == 12
+    assert len(cases) == 24
     assert {verdict: sum(case.expected_verdict == verdict for case in cases) for verdict in VERDICTS} == {
-        "strong_match": 3,
-        "good_match": 3,
-        "partial_match": 3,
-        "weak_match": 3,
+        "strong_match": 6,
+        "good_match": 6,
+        "partial_match": 6,
+        "weak_match": 6,
     }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_report_includes_structured_jd_and_evidence_coverage():
+    case = _case("evidence", "good_match")
+    output = {
+        "verdict": "good_match",
+        "jd_analysis": {"requirements": [{"text": "Python"}, {"text": "SQL"}]},
+        "requirement_assessments": [
+            {"status": "met", "cv_evidence": "Python in production"},
+            {"status": "missing", "cv_evidence": ""},
+        ],
+    }
+    agent = FakeMatchingAgent(
+        [
+            AgentResult(
+                output=output,
+                run_logs=[
+                    AgentRunLog(
+                        agent_name="matching_agent",
+                        prompt_version="matching_v2_ollama",
+                        latency_ms=20,
+                        output=output,
+                        model="fake-model",
+                    )
+                ],
+            )
+        ]
+    )
+
+    outcomes = await evaluate_cases([case], agent)
+    report = render_report([case], outcomes, provider="test")
+
+    assert outcomes[0]["requirements_total"] == 2
+    assert outcomes[0]["requirements_with_cv_evidence"] == 1
+    assert "Structured JD analysis: 1/1 cases" in report
+    assert "CV evidence quotes: 1/2 assessed requirements" in report
 
 
 def test_live_job_benchmark_uses_distinct_companies_and_controlled_labels():

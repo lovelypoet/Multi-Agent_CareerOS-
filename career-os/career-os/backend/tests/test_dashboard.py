@@ -6,6 +6,7 @@ tuyệt đối là an toàn, không cần lo dữ liệu từ test khác lẫn v
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -84,7 +85,17 @@ async def test_avg_score_counts_latest_match_result_per_job_only(client):
     Kỳ vọng avg = (90 + 70) / 2 = 80, KHÔNG PHẢI (50 + 90 + 70) / 3.
     """
     async with SessionLocal() as session:
-        session.add(Resume(id=1, content="CV mau"))
+        session.add(
+            Resume(
+                id=1,
+                content="CV mau",
+                content_hash=hashlib.sha256("CV mau".encode()).hexdigest(),
+                version_number=1,
+                is_active=True,
+                extraction_status="unverified",
+                embedding_status="unverified",
+            )
+        )
         job_a = Job(description="Job A")
         job_b = Job(description="Job B")
         session.add_all([job_a, job_b])

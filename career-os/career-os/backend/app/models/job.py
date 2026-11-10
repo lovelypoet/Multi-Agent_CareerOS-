@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, created_at_column
 
-SOURCES = ("manual", "itviec")
+SOURCES = ("manual", "itviec", "remoteok")
 
 # Dimension thật của `nomic-embed-text-v2-moe`, đã tự verify — xem `integrations/embedding_client.py`.
 EMBEDDING_DIM = 768
@@ -17,7 +17,7 @@ EMBEDDING_DIM = 768
 class Job(Base):
     __tablename__ = "jobs"
     __table_args__ = (
-        CheckConstraint("source IN ('manual', 'itviec')", name="ck_jobs_source"),
+        CheckConstraint("source IN ('manual', 'itviec', 'remoteok')", name="ck_jobs_source"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

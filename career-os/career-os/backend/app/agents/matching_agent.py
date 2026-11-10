@@ -39,13 +39,14 @@ from app.integrations.anthropic import AnthropicCallError, AnthropicClient
 from app.integrations.llm_client import LLMClient
 from app.integrations.ollama_client import OllamaCallError, OllamaClient
 from app.schemas.match import MatchOutput
+from app.services.match_evidence import verify_and_score_match
 
 # Claude dùng bản gốc; Ollama (1 model) dùng bản có thêm few-shot examples (xem
 # prompts/matching_v1_ollama.md) để sửa lỗi calibration đã quan sát được ở model local.
 # ollama_ensemble KHÔNG dùng bảng này — luôn ép về "matching_v1" gốc, xem __init__.
 PROMPT_VERSION_BY_PROVIDER = {
-    "anthropic": "matching_v1",
-    "ollama": "matching_v1_ollama",
+    "anthropic": "matching_v2",
+    "ollama": "matching_v2_ollama",
 }
 AGENT_NAME = "matching_agent"
 
@@ -90,7 +91,7 @@ class MatchingAgent(BaseAgent):
             # Ensemble LUÔN dùng matching_v1.md gốc cho cả 2 model, không dùng bản few-shot dù
             # đang chạy Ollama — 2 model phải cùng xuất phát điểm để bất đồng giữa chúng phản
             # ánh đúng khác biệt reasoning, không phải do prompt khác nhau.
-            self._prompt = load_prompt("matching_v1")
+            self._prompt = load_prompt("matching_v2")
         else:
             self._clients = [client or _build_default_client(settings)]
             self._prompt = load_prompt(PROMPT_VERSION_BY_PROVIDER[settings.llm_provider])
@@ -161,9 +162,14 @@ class MatchingAgent(BaseAgent):
                 continue
 
             try:
-                output = MatchOutput.model_validate(payload)
-            except ValidationError as exc:
-                error = f"Output sai schema: {exc.errors()} | payload={json.dumps(payload)[:500]}"
+                output = verify_and_score_match(
+                    MatchOutput.model_validate(payload),
+                    resume_text=context.resume_text,
+                    job_description_text=context.job_description_text,
+                )
+            except (ValidationError, ValueError) as exc:
+                details = exc.errors() if isinstance(exc, ValidationError) else str(exc)
+                error = f"Output sai schema: {details} | payload={json.dumps(payload)[:500]}"
                 outcomes.append(
                     (
                         None,

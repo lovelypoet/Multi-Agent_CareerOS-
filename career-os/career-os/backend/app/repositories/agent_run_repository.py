@@ -16,7 +16,9 @@ class AgentRunRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def log(self, *, run_log: AgentRunLog, job_id: int | None) -> AgentRun:
+    async def log(
+        self, *, run_log: AgentRunLog, job_id: int | None, resume_id: int | None = None
+    ) -> AgentRun:
         error = run_log.error
         if error and len(error) > MAX_ERROR_CHARS:
             error = error[:MAX_ERROR_CHARS] + "... (truncated)"
@@ -24,6 +26,7 @@ class AgentRunRepository:
         run = AgentRun(
             agent_name=run_log.agent_name,
             job_id=job_id,
+            resume_id=resume_id,
             prompt_version=run_log.prompt_version,
             model=run_log.model,
             input_tokens=run_log.input_tokens,

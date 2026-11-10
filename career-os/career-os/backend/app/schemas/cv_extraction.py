@@ -10,6 +10,7 @@ chặn ở tầng validate nếu model cố nhét nhiều hơn, không cần cod
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -34,12 +35,15 @@ class CVExtractionOutput(BaseModel):
 
 
 class CVExtractedKeywordsRead(BaseModel):
-    """`CVExtractionOutput` + metadata của row trong DB."""
+    """Current-version extraction state and any verified extracted keywords."""
 
     model_config = ConfigDict(from_attributes=True)
 
     resume_id: int
+    version_number: int
     domains: list[str]
     key_skills: list[str]
-    updated_at: datetime
-    created_at: datetime
+    extraction_status: Literal["pending", "running", "succeeded", "empty", "failed", "unverified"]
+    extraction_error: str | None
+    updated_at: datetime | None
+    created_at: datetime | None

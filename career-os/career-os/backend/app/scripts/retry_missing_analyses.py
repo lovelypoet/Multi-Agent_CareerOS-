@@ -28,7 +28,6 @@ import sys
 
 from app.core.agent_contract import AgentContext, AgentExecutionError, AgentUnavailableError
 from app.core.agent_registry import get_agent
-from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.integrations.anthropic import AnthropicConfigError
 from app.repositories.agent_run_repository import AgentRunRepository
@@ -46,10 +45,8 @@ DELAY_BETWEEN_CALLS_SECONDS = 0.7
 
 
 async def run() -> None:
-    settings = get_settings()
-
     async with SessionLocal() as session:
-        resume = await ResumeRepository(session).get_singleton(settings.resume_singleton_id)
+        resume = await ResumeRepository(session).get_active()
         if resume is None:
             print("Chưa có resume nào được lưu — không thể phân tích job nào. Dừng lại.")
             return

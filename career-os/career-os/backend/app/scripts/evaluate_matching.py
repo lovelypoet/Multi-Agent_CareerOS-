@@ -62,9 +62,24 @@ async def evaluate_cases(cases: list[EvaluationCase], agent: BaseAgent) -> list[
                     "status": "error",
                     "error": str(exc)[:240],
                     "run_logs": exc.run_logs,
+                    "requirements_total": 0,
+                    "requirements_with_cv_evidence": 0,
+                    "score": None,
                 }
             )
             continue
+
+        output = result.output or {}
+        analysis = output.get("jd_analysis") if isinstance(output, dict) else None
+        requirements = analysis.get("requirements", []) if isinstance(analysis, dict) else []
+        assessments = output.get("requirement_assessments", []) if isinstance(output, dict) else []
+        evidenced = sum(
+            1
+            for assessment in assessments
+            if isinstance(assessment, dict)
+            and assessment.get("status") in {"met", "partial"}
+            and assessment.get("cv_evidence")
+        )
 
         if result.needs_review:
             status = "needs_review"
@@ -84,6 +99,9 @@ async def evaluate_cases(cases: list[EvaluationCase], agent: BaseAgent) -> list[
                 "status": status,
                 "error": None,
                 "run_logs": result.run_logs,
+                "requirements_total": len(requirements),
+                "requirements_with_cv_evidence": evidenced,
+                "score": output.get("score") if isinstance(output, dict) else None,
             }
         )
     return outcomes
@@ -120,6 +138,9 @@ def render_report(
     total_input_tokens = sum(log.input_tokens or 0 for log in calls)
     total_output_tokens = sum(log.output_tokens or 0 for log in calls)
     status_counts = Counter(outcome["status"] for outcome in outcomes)
+    structured_cases = sum(outcome.get("requirements_total", 0) > 0 for outcome in outcomes)
+    requirements_total = sum(outcome.get("requirements_total", 0) for outcome in outcomes)
+    evidenced_requirements = sum(outcome.get("requirements_with_cv_evidence", 0) for outcome in outcomes)
 
     lines = [
         "# Matching agent evaluation",
@@ -140,6 +161,8 @@ def render_report(
         f"{status_counts.get('error', 0)} errors",
         f"- Agent calls: {len(calls)}; summed model latency: {total_latency_ms / 1000:.1f}s; "
         f"tokens: {total_input_tokens:,} input / {total_output_tokens:,} output",
+        f"- Structured JD analysis: {structured_cases}/{len(cases)} cases; "
+        f"CV evidence quotes: {evidenced_requirements}/{requirements_total} assessed requirements",
         "",
         "| Verdict | Support | Precision | Recall | F1 |",
         "|---|---:|---:|---:|---:|",
@@ -160,8 +183,8 @@ def render_report(
     else:
         lines.extend(
             [
-                "| Case | Expected | Result | Notes |",
-                "|---|---|---|---|",
+                "| Case | Expected | Result | Score | Structured requirements | Notes |",
+                "|---|---|---|---:|---:|---|",
             ]
         )
         for case, outcome in failures:
@@ -172,17 +195,22 @@ def render_report(
             else:
                 result = f"predicted `{outcome['actual']}`"
             notes = case.rationale.replace("|", "\\|")
-            lines.append(f"| `{case.case_id}` | `{case.expected_verdict}` | {result} | {notes} |")
+            score = outcome.get("score")
+            requirements = outcome.get("requirements_total", 0)
+            lines.append(
+                f"| `{case.case_id}` | `{case.expected_verdict}` | {result} | "
+                f"{score if score is not None else '—'} | {requirements} | {notes} |"
+            )
 
     lines.extend(
         [
             "",
             "## Interpretation",
             "",
-            "This is an initial, small, hand-labeled benchmark of verdict classification, not proof "
-            "of production accuracy. The labels reflect the rubric in `prompts/matching_v1.md`; "
-            "review the case-level results and dataset, and expand it before making broad quality "
-            "claims. Exact-verdict accuracy counts errors and review-required outcomes as incorrect.",
+            "This 24-case balanced benchmark uses hand-authored synthetic resume/JD pairs. Labels "
+            "are scenario-based annotations, not independently adjudicated hiring decisions or "
+            "proof of production accuracy. Review case-level results and source-quote coverage; "
+            "exact-verdict accuracy counts errors and review-required outcomes as incorrect.",
             "",
         ]
     )

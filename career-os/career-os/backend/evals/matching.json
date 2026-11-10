@@ -82,5 +82,89 @@
     "job_description": "Machine Learning Engineer. Must have production Python, model training and evaluation experience, PyTorch, and experience deploying ML services. Requires 3+ years in software engineering.",
     "expected_verdict": "weak_match",
     "rationale": "There is no evidence for the required software engineering or machine-learning experience."
+  },
+  {
+    "case_id": "strong_security_engineer",
+    "resume_text": "Security engineer with 7 years securing production cloud platforms. Built threat models, automated SAST and dependency scanning, operated AWS IAM and Kubernetes controls, and led incident response. Holds CISSP and AWS Security Specialty certifications.",
+    "job_description": "Security Engineer. Required: 5+ years in application security, threat modeling, cloud security, and incident response. Preferred: CISSP and AWS Security Specialty.",
+    "expected_verdict": "strong_match",
+    "rationale": "Direct evidence covers every required security area and both preferred certifications."
+  },
+  {
+    "case_id": "strong_data_engineer",
+    "resume_text": "Data engineer with 6 years building production pipelines using Python, SQL, Spark, and Airflow. Deployed workloads on GCP BigQuery, added dbt data tests, and monitored pipeline reliability.",
+    "job_description": "Data Engineer. Must have 4+ years of data engineering, Python, SQL, Spark, and Airflow. Nice to have: BigQuery and dbt.",
+    "expected_verdict": "strong_match",
+    "rationale": "Meets all five core requirements and documents both preferred tools."
+  },
+  {
+    "case_id": "strong_qa_automation",
+    "resume_text": "QA automation engineer with 5 years testing web products. Built Selenium and Playwright suites in Java, tested REST APIs, and integrated suites into Jenkins CI. Led release test planning.",
+    "job_description": "QA Automation Engineer. Required: 4+ years of automation testing, Java, Selenium, and API testing. Preferred: Playwright and Jenkins CI.",
+    "expected_verdict": "strong_match",
+    "rationale": "Evidence directly supports all required and preferred testing skills."
+  },
+  {
+    "case_id": "good_backend_missing_redis",
+    "resume_text": "Backend engineer with 5 years building Python and FastAPI services backed by PostgreSQL. Designed REST APIs, deployed services to AWS, and supported production releases. No Redis experience is listed.",
+    "job_description": "Backend Engineer. Required: 4+ years backend development, Python, FastAPI, PostgreSQL, and REST API design. Preferred: Redis and AWS.",
+    "expected_verdict": "good_match",
+    "rationale": "Meets all required criteria and one preferred skill, with Redis as the only stated gap."
+  },
+  {
+    "case_id": "good_frontend_missing_accessibility",
+    "resume_text": "Frontend engineer with 4 years building React and TypeScript applications using Next.js. Wrote unit and browser tests with Jest and Playwright. No accessibility audit work is listed.",
+    "job_description": "Frontend Engineer. Must have 3+ years of frontend experience, React, TypeScript, and automated testing. Preferred: Next.js and accessibility audits.",
+    "expected_verdict": "good_match",
+    "rationale": "All core requirements are evidenced; one of two preferred areas is not documented."
+  },
+  {
+    "case_id": "good_ml_missing_pytorch",
+    "resume_text": "Machine learning engineer with 4 years developing production models in Python. Built training and evaluation pipelines with TensorFlow and deployed inference APIs to Kubernetes. No PyTorch experience is listed.",
+    "job_description": "Machine Learning Engineer. Required: 3+ years in machine learning, Python, model evaluation, and production deployment. Preferred: PyTorch and Kubernetes.",
+    "expected_verdict": "good_match",
+    "rationale": "Matches all required experience and one preferred deployment tool, but PyTorch is absent."
+  },
+  {
+    "case_id": "partial_data_analyst_missing_python",
+    "resume_text": "Data analyst with 3 years building dashboards in Tableau and writing SQL reports for business teams. Presented insights to stakeholders. Has no Python experience.",
+    "job_description": "Data Analyst. Required: 3+ years in analytics, strong SQL, Python data analysis, and statistical testing. Preferred: Tableau.",
+    "expected_verdict": "partial_match",
+    "rationale": "Has analytics, SQL, and Tableau evidence but lacks two required analysis skills."
+  },
+  {
+    "case_id": "partial_devops_missing_kubernetes",
+    "resume_text": "DevOps engineer with 2 years maintaining Linux servers and Docker builds. Created GitHub Actions pipelines and monitored AWS workloads. Has not used Kubernetes.",
+    "job_description": "DevOps Engineer. Required: 4+ years of DevOps, Linux, Kubernetes, Docker, and CI/CD. Preferred: AWS monitoring.",
+    "expected_verdict": "partial_match",
+    "rationale": "Relevant Linux, Docker, CI/CD, and AWS work is present, but experience is short and Kubernetes is missing."
+  },
+  {
+    "case_id": "partial_product_analyst",
+    "resume_text": "Product analyst with 4 years using SQL and Amplitude to build product dashboards and explain funnel trends. Has limited Python exposure through one short course and no experimentation ownership.",
+    "job_description": "Product Analyst. Required: 3+ years of product analytics, SQL, Python analysis, and ownership of A/B testing. Preferred: Amplitude.",
+    "expected_verdict": "partial_match",
+    "rationale": "Strong product analytics and SQL evidence is offset by limited Python and missing experiment ownership."
+  },
+  {
+    "case_id": "weak_mobile_to_backend",
+    "resume_text": "Mobile developer with 6 years building iOS applications in Swift and SwiftUI. Integrated REST APIs as a client. No backend services, Python, or database work is listed.",
+    "job_description": "Backend Engineer. Required: 5+ years building backend services, Python, Django, PostgreSQL, and production API ownership.",
+    "expected_verdict": "weak_match",
+    "rationale": "Mobile API consumption does not demonstrate the required backend implementation skills."
+  },
+  {
+    "case_id": "weak_marketing_to_data_science",
+    "resume_text": "Digital marketing specialist with 7 years running campaigns and writing content. Uses spreadsheets for basic reporting. No programming, statistics, or machine-learning experience is listed.",
+    "job_description": "Data Scientist. Required: Python, statistics, machine learning, SQL, and production model deployment. Preferred: PyTorch.",
+    "expected_verdict": "weak_match",
+    "rationale": "The resume contains no evidence for the core data-science or engineering requirements."
+  },
+  {
+    "case_id": "weak_support_to_security",
+    "resume_text": "Customer support representative with 5 years resolving account issues and documenting customer requests. No security engineering, cloud, or programming work is listed.",
+    "job_description": "Cloud Security Engineer. Required: AWS security, IAM policy design, threat modeling, Terraform, and 4+ years of security engineering.",
+    "expected_verdict": "weak_match",
+    "rationale": "Customer support experience does not establish evidence for the required cloud-security work."
   }
 ]

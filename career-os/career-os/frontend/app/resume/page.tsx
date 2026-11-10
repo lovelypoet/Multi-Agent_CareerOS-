@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import Icon from "@/components/Icon";
 import PendingDots from "@/components/PendingDots";
 import {
   ApiError,
@@ -30,10 +31,29 @@ export default function ResumePage() {
   async function refreshExtractedKeywords() {
     try {
       setExtractedKeywords(await getExtractedKeywords());
-    } catch {
-      // Chưa có (404, vd trích xuất lần đầu chưa từng chạy hoặc lỗi) — không hiện khối minh
-      // bạch, không phải lỗi cần báo cho người dùng thấy.
-      setExtractedKeywords(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === ErrorCode.RESUME_NOT_FOUND) {
+        setExtractedKeywords(null);
+        return;
+      }
+      setError("Could not load resume processing status. Check the server and try again.");
+    }
+  }
+
+  function extractionStatusMessage(status: CVExtractedKeywords["extraction_status"]) {
+    switch (status) {
+      case "pending":
+        return "Resume analysis is waiting to start.";
+      case "running":
+        return "Resume analysis is in progress.";
+      case "succeeded":
+        return "Verified skills from this resume version improve job search filters.";
+      case "empty":
+        return "Analysis completed, but no skills were extracted. Previous resume skills are not used.";
+      case "failed":
+        return "Analysis failed. Previous resume skills are not used. Save the same resume to retry.";
+      case "unverified":
+        return "This resume predates version tracking. Save it again to verify its extracted skills.";
     }
   }
 
@@ -141,12 +161,19 @@ export default function ResumePage() {
               disabled={!canSave}
               className="rounded-control bg-accent px-6 py-3 font-display text-body font-semibold text-white transition duration-150 ease-out-soft hover:bg-accent-hover hover:scale-[1.02] disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 disabled:hover:scale-100"
             >
-              {saving ? <PendingDots label="Saving…" /> : "Save resume"}
+              {saving ? (
+                <PendingDots label="Saving…" />
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <Icon name="save" />
+                  Save resume
+                </span>
+              )}
             </button>
 
             {saved && (
               <span className="animate-rise-in text-caption font-semibold text-verdict-strong">
-                Resume saved. <Link href="/" className="underline">Return to pipeline</Link>
+                Resume saved. <Link href="/" className="underline">Return to dashboard</Link>
               </span>
             )}
           </div>
@@ -164,7 +191,14 @@ export default function ResumePage() {
                 uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer"
               }`}
             >
-              {uploading ? <PendingDots label="Processing PDF" /> : "Choose a PDF file"}
+              {uploading ? (
+                <PendingDots label="Processing PDF" />
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  <Icon name="upload" />
+                  Upload PDF
+                </span>
+              )}
             </label>
             <input
               ref={fileInputRef}
@@ -187,12 +221,18 @@ export default function ResumePage() {
             </p>
           )}
 
-          {extractedKeywords &&
-            (extractedKeywords.domains.length > 0 || extractedKeywords.key_skills.length > 0) && (
-              <div className="mt-6 rounded-card border border-line bg-surface-muted p-4">
-                <p className="text-caption font-semibold text-muted">
-                  Skills identified in your resume and used to improve job search filters:
+          {extractedKeywords && (
+            <div className="mt-6 rounded-card border border-line bg-surface-muted p-4">
+              <p className="text-caption font-semibold text-muted">
+                Resume version {extractedKeywords.version_number} ·{" "}
+                {extractionStatusMessage(extractedKeywords.extraction_status)}
+              </p>
+              {extractedKeywords.extraction_status === "failed" && extractedKeywords.extraction_error && (
+                <p role="status" className="mt-2 text-caption text-verdict-weak">
+                  {extractedKeywords.extraction_error}
                 </p>
+              )}
+              {(extractedKeywords.domains.length > 0 || extractedKeywords.key_skills.length > 0) && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {[...extractedKeywords.domains, ...extractedKeywords.key_skills].map((keyword) => (
                     <span
@@ -203,8 +243,9 @@ export default function ResumePage() {
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>

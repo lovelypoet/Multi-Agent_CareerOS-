@@ -17,6 +17,9 @@ class AgentRun(Base):
     job_id: Mapped[int | None] = mapped_column(
         ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    resume_id: Mapped[int | None] = mapped_column(
+        ForeignKey("resumes.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
     # Model thật đã tạo ra kết quả này (vd. "claude-sonnet-5", "qwen2.5:7b") — nullable vì các
     # row cũ trước khi có cột này không có thông tin này, không backfill được.

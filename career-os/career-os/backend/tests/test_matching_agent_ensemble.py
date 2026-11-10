@@ -55,7 +55,7 @@ async def test_both_models_agree_result_matches_the_lower_scoring_one_entirely()
     assert len(result.run_logs) == 2
     models_logged = {log.model for log in result.run_logs}
     assert models_logged == {"qwen2.5:7b", "llama3.1:8b"}
-    assert all(log.prompt_version == "matching_v1" for log in result.run_logs)
+    assert all(log.prompt_version == "matching_v2" for log in result.run_logs)
     assert all(log.error is None for log in result.run_logs)
 
 

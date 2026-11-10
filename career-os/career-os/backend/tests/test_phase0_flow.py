@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from sqlalchemy import func, select
 
@@ -23,20 +25,35 @@ async def _save_resume(client, content: str = "3 năm kinh nghiệm React, TypeS
     return await client.post("/api/resume", json={"content": content})
 
 
-# --- Resume: phải là upsert, không được tích tụ row -----------------------------
+# --- Resume versions: immutable history and one active record -------------------
 
 
-async def test_resume_saved_many_times_stays_one_row(client):
+async def test_resume_saved_many_times_creates_versions_and_keeps_one_active(client):
     for i in range(4):
         response = await _save_resume(client, f"resume version {i}")
         assert response.status_code == 200
 
-    assert await _count(Resume) == 1
+    assert await _count(Resume) == 4
 
     async with SessionLocal() as session:
-        resume = (await session.execute(select(Resume))).scalar_one()
-    assert resume.id == 1
-    assert resume.content == "resume version 3"
+        resumes = (await session.execute(select(Resume).order_by(Resume.version_number))).scalars().all()
+    assert [resume.version_number for resume in resumes] == [1, 2, 3, 4]
+    assert [resume.content for resume in resumes] == [f"resume version {i}" for i in range(4)]
+    assert [resume.is_active for resume in resumes] == [False, False, False, True]
+
+
+async def test_concurrent_first_resume_uploads_create_unique_versions_and_one_active(client):
+    responses = await asyncio.gather(
+        _save_resume(client, "concurrent resume A"),
+        _save_resume(client, "concurrent resume B"),
+    )
+
+    assert [response.status_code for response in responses] == [200, 200]
+    async with SessionLocal() as session:
+        resumes = (await session.execute(select(Resume).order_by(Resume.version_number))).scalars().all()
+    assert len(resumes) == 2
+    assert [resume.version_number for resume in resumes] == [1, 2]
+    assert sum(resume.is_active for resume in resumes) == 1
 
 
 async def test_resume_rejects_blank_content(client):
@@ -82,13 +99,56 @@ async def test_analyze_happy_path(client, fake_agent, valid_match_json):
     # Prompt thật sự được ghép từ file .md, có cả resume lẫn JD.
     assert len(fake_client.calls) == 1
     call = fake_client.calls[0]
-    assert "technical recruiter" in call["system"]
+    assert "evidence" in call["system"]
     assert "3 năm kinh nghiệm React" in call["user_content"]
     assert "Cần React 3+ năm" in call["user_content"]
     assert "{resume_text}" not in call["user_content"]
 
     assert await _count(Job) == 1
     assert await _count(MatchResult) == 1
+
+
+async def test_analyze_persists_structured_requirements_and_verified_cv_quotes(
+    client, fake_agent, fake_cv_extraction_agent
+):
+    resume_text = "Worked with React in production. TypeScript experience is basic."
+    await _save_resume(client, resume_text)
+    structured_output = (
+        '{"score": 99, "verdict": "strong_match", "reasoning": "React is a close match.", '
+        '"matched_requirements": [], "missing_requirements": [], "suggestions": [], '
+        '"jd_analysis": {"role_title": "Frontend Developer", "experience_level": null, '
+        '"tech_stack": ["React", "TypeScript"], "requirements": ['
+        '{"text": "Production React", "priority": "required", "category": "skill", '
+        '"jd_quote": "Production React experience is required."},'
+        '{"text": "Advanced TypeScript", "priority": "required", "category": "skill", '
+        '"jd_quote": "Advanced TypeScript experience is required."}]}, '
+        '"requirement_assessments": ['
+        '{"requirement_index": 0, "status": "met", "cv_evidence": "Worked with React in production."},'
+        '{"requirement_index": 1, "status": "partial", "cv_evidence": "TypeScript experience is basic."}]}'
+    )
+    fake_agent(responses=[structured_output])
+    fake_cv_extraction_agent(responses=['{"domains": [], "key_skills": []}'])
+
+    response = await client.post(
+        "/api/jobs/analyze",
+        json={"description": "Production React experience is required. Advanced TypeScript experience is required."},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    match = body["match"]
+    assert match["analysis_basis"] == "evidence_based"
+    assert match["score"] == 75
+    assert match["verdict"] == "good_match"
+    assert match["jd_analysis"]["tech_stack"] == ["React", "TypeScript"]
+    assert match["requirement_assessments"][0]["cv_evidence"] == "Worked with React in production."
+    assert match["requirement_assessments"][1]["status"] == "partial"
+
+    async with SessionLocal() as session:
+        stored = (await session.execute(select(MatchResult))).scalar_one()
+    assert stored.analysis_basis == "evidence_based"
+    assert stored.jd_analysis["role_title"] == "Frontend Developer"
+    assert len(stored.requirement_assessments) == 2
 
 
 async def test_agent_run_logged_with_usage(client, fake_agent, valid_match_json):

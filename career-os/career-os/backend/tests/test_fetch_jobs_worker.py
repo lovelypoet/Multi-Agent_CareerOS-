@@ -9,8 +9,10 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.db import SessionLocal
-from app.integrations.itviec import ItviecFetchError, JobListingMeta
-from app.models import AgentRun, Job, MatchResult
+from app.integrations.anthropic import AnthropicCallError
+from app.integrations.itviec import ItviecFetchError
+from app.integrations.job_listing import JobListing
+from app.models import AgentRun, Job, MatchResult, Resume
 from app.workers import fetch_jobs
 from app.workers.fetch_jobs import (
     build_effective_keywords,
@@ -34,8 +36,8 @@ async def _save_resume(client, content: str = "3 nam React, TypeScript co ban.")
     return await client.post("/api/resume", json={"content": content})
 
 
-def _job(url: str, title: str = "Data Engineer Fresher", company: str = "Acme", tags=None) -> JobListingMeta:
-    return JobListingMeta(title=title, company=company, url=url, skill_tags=tags or ["Data Engineer"])
+def _job(url: str, title: str = "Data Engineer Fresher", company: str = "Acme", tags=None) -> JobListing:
+    return JobListing(title=title, company=company, url=url, skill_tags=tags or ["Data Engineer"])
 
 
 # --- Keyword filter (thuần, không mock) -------------------------------------------------
@@ -100,7 +102,13 @@ class TestPassesLevelFilter:
 
 @pytest.fixture
 def fake_scraper(monkeypatch):
-    state = {"listings": {}, "details": {}, "detail_calls": [], "listing_calls": []}
+    state = {
+        "listings": {},
+        "details": {},
+        "detail_calls": [],
+        "listing_calls": [],
+        "remoteok_listings": [],
+    }
 
     async def fake_fetch_listing(category_url: str):
         state["listing_calls"].append(category_url)
@@ -116,8 +124,12 @@ def fake_scraper(monkeypatch):
             raise detail
         return detail if detail is not None else "Mo ta mac dinh, khong co tin hieu level nao ca."
 
+    async def fake_fetch_remoteok_jobs():
+        return state["remoteok_listings"]
+
     monkeypatch.setattr(fetch_jobs, "fetch_listing", fake_fetch_listing)
     monkeypatch.setattr(fetch_jobs, "fetch_detail", fake_fetch_detail)
+    monkeypatch.setattr(fetch_jobs, "fetch_remoteok_jobs", fake_fetch_remoteok_jobs)
 
     def _set_categories(categories: dict) -> None:
         """categories: {category_name: list[JobListingMeta] | Exception}. category_name
@@ -175,6 +187,34 @@ async def test_relevant_fresher_job_is_fetched_and_analyzed(client, fake_scraper
     assert job.source == "itviec"
     assert job.title == "Data Engineer Fresher"
     assert job.url == "https://itviec.com/it-jobs/de-fresher-1"
+
+
+@async_test
+async def test_remoteok_job_is_stored_and_analyzed_without_detail_fetch(
+    client, fake_scraper, fake_agent, valid_match_json
+):
+    await _save_resume(client)
+    fake_agent(responses=[valid_match_json])
+    remote_job = JobListing(
+        title="Data Engineer",
+        company="Remote Acme",
+        url="https://remoteok.com/remote-jobs/123-data-engineer",
+        skill_tags=["Python", "Data Engineer"],
+        description="Build data pipelines with Python.",
+    )
+    fake_scraper["remoteok_listings"] = [remote_job]
+    fake_scraper["set_categories"]({})
+
+    await run_fetch_jobs()
+
+    assert await _count(Job) == 1
+    assert fake_scraper["detail_calls"] == []
+    async with SessionLocal() as session:
+        job = (await session.execute(select(Job))).scalar_one()
+    assert job.source == "remoteok"
+    assert job.title == "Data Engineer"
+    assert job.description == "Build data pipelines with Python."
+    assert job.url == remote_job.url
 
 
 @async_test
@@ -438,3 +478,73 @@ async def test_no_resume_embedding_skips_embedding_condition_entirely_no_crash(
 
     assert await _count(Job) == 0  # không khớp từ khóa, không có embedding để so sánh -> bị loại
     assert calls == []  # embed_text() KHÔNG được gọi cho job này
+
+
+@async_test
+async def test_worker_never_uses_derived_data_from_an_old_resume_version(
+    client,
+    fake_scraper,
+    fake_agent,
+    fake_cv_extraction_agent,
+    fake_embedding_client,
+):
+    old_skill = "StaleOnlySkill"
+    vector = _vec(1.0)
+    calls = fake_embedding_client(vectors={old_skill: vector})
+    fake_cv_extraction_agent(responses=['{"domains": [], "key_skills": ["StaleOnlySkill"]}'])
+    first = await _save_resume(client, "old resume")
+    assert first.json()["embedding_status"] == "succeeded"
+
+    fake_cv_extraction_agent(raise_error=AnthropicCallError("simulated extraction timeout"))
+    second = await _save_resume(client, "new active resume")
+    assert second.json()["extraction_status"] == "failed"
+    assert second.json()["embedding_status"] == "blocked"
+
+    fake_agent(responses=["unused"])
+    fake_scraper["set_categories"](
+        {
+            "Other": [
+                _job(
+                    "https://itviec.com/it-jobs/stale-only",
+                    title="ObscureRole",
+                    tags=[old_skill],
+                )
+            ]
+        }
+    )
+    await run_fetch_jobs()
+
+    assert await _count(Job) == 0
+    assert calls == [old_skill]
+
+
+@async_test
+async def test_worker_persists_match_for_resume_snapshot_if_active_version_changes(
+    client, fake_scraper, fake_agent, valid_match_json, monkeypatch
+):
+    old_resume = await _save_resume(client, "old resume snapshot")
+    fake_agent(responses=[valid_match_json])
+    url = "https://itviec.com/it-jobs/snapshot-version"
+    fake_scraper["set_categories"]({"Data Engineer": [_job(url)]})
+    fake_scraper["details"][url] = "Fresher role, entry level."
+    fetch_listing = fetch_jobs.fetch_listing
+    new_resume_ids: list[int] = []
+
+    async def activate_new_resume(category_url: str):
+        if not new_resume_ids:
+            response = await client.post("/api/resume", json={"content": "new active resume"})
+            assert response.status_code == 200
+            new_resume_ids.append(response.json()["id"])
+        return await fetch_listing(category_url)
+
+    monkeypatch.setattr(fetch_jobs, "fetch_listing", activate_new_resume)
+    await run_fetch_jobs()
+
+    async with SessionLocal() as session:
+        match = (await session.execute(select(MatchResult))).scalar_one()
+        active = (
+            await session.execute(select(Resume).where(Resume.is_active.is_(True)))
+        ).scalar_one()
+    assert active.id == new_resume_ids[0]
+    assert match.resume_id == old_resume.json()["id"]
+    assert match.resume_id != active.id
